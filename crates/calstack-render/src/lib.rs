@@ -234,8 +234,7 @@ pub fn strip(
         );
         c.rect(block.rect, color, alpha);
     }
-    // Hour ticks stay visible over event fills. Label every second hour, with
-    // the numeral directly beneath its tick, without changing hit geometry.
+    // Small, right-aligned labels mark every hour over event fills.
     for hour in ((start + 59) / 60)..=((end - 1) / 60) {
         let y = y_at((hour * 60) as f32, start, end, drawable);
         let sample_x = (width as f32 * c.scale / 2.0) as usize;
@@ -250,26 +249,14 @@ pub fn strip(
         } else {
             palette.muted
         };
-        if y > 0.0 {
-            c.rect(
-                Rect {
-                    x: width as f32 - 4.0,
-                    y,
-                    width: 3.0,
-                    height: 0.5,
-                },
-                ink,
-                0.65,
-            );
-        }
-        if hour % 2 == 0 && y + 9.0 < drawable {
+        if y + 9.0 < drawable {
             let label = hour.to_string();
             let size = 6.0_f32.min(width as f32 - 2.0);
             let label_width = text.width(&label, size);
             text.text(
                 &mut c,
                 &label,
-                ((width as f32 - label_width) / 2.0, y + 7.5),
+                (width as f32 - label_width - 1.0, y + 7.5),
                 size,
                 ink,
                 width as f32 - 1.0,
