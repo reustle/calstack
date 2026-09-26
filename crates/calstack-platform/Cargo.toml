@@ -1,0 +1,15 @@
+[package]
+name = "calstack-platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+calstack-core.workspace = true
+calstack-render.workspace = true
+tracing.workspace = true
+smithay-client-toolkit = "0.20"
+wayland-client = "0.31"
+toml.workspace = true

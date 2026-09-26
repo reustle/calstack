@@ -1,0 +1,9 @@
+[package]
+name = "calstack-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+calstack-core.workspace = true
+fontdue = "0.9"

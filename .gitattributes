@@ -1,0 +1,2 @@
+# RFC 5545 calendar fixtures use CRLF line endings.
+*.ics text eol=crlf whitespace=cr-at-eol

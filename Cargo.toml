@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1"
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+calstack-core = { path = "crates/calstack-core" }
+calstack-render = { path = "crates/calstack-render" }
+calstack-platform = { path = "crates/calstack-platform" }
+
+[profile.release]
+lto = "thin"
+strip = true
