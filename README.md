@@ -55,7 +55,8 @@ journalctl --user -u calstack-demo
   **Demo meeting URLs are placeholders, not working invitations.** Clicking
   them can open the provider's website in your browser.
 - Click the bottom `⋮` for **Refresh**, **Settings**, or **Quit**. Settings opens
-  the TOML config in the system's default associated application; Refresh
+  the TOML config in Omarchy's selected editor (including a terminal window for
+  terminal editors), or the default associated application on other desktops; Refresh
   reloads the config and demo schedule. Invalid edits keep the previous config
   and log a warning.
 

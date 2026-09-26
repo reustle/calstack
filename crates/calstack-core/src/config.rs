@@ -33,9 +33,9 @@ impl Default for Display {
 #[serde(default, deny_unknown_fields)]
 pub struct Appearance {
     pub theme: String,
-    pub past_opacity: f32,
-    pub future_opacity: f32,
-    pub active_opacity: f32,
+    pub past_opacity: f64,
+    pub future_opacity: f64,
+    pub active_opacity: f64,
     pub show_now_marker: bool,
 }
 impl Default for Appearance {

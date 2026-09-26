@@ -168,11 +168,11 @@ pub fn event_popup(
             palette.text,
             card.width - 44.0 - duration_width,
         );
-        let action = if event.meeting.is_some() {
-            "Open sample meeting"
-        } else {
-            "View event details"
-        };
+        let action = event
+            .meeting
+            .as_deref()
+            .and_then(calstack_core::meeting::action_label)
+            .unwrap_or("View event details");
         text.text(
             &mut canvas,
             action,

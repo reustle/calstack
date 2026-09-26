@@ -1,5 +1,20 @@
 use url::Url;
 
+pub fn action_label(candidate: &str) -> Option<&'static str> {
+    let url = recognized_url(candidate)?;
+    let host = url.host_str()?;
+    Some(match host {
+        "meet.google.com" => "Open Google Meet",
+        "teams.microsoft.com" | "teams.live.com" => "Open Microsoft Teams",
+        "whereby.com" => "Open Whereby",
+        "meet.jit.si" => "Open Jitsi Meet",
+        "chime.aws" => "Open Amazon Chime",
+        host if host == "zoom.us" || host.ends_with(".zoom.us") => "Open Zoom",
+        host if host == "webex.com" || host.ends_with(".webex.com") => "Open Webex",
+        _ => "Open GoTo Meeting",
+    })
+}
+
 pub fn recognized_url(candidate: &str) -> Option<Url> {
     let url = Url::parse(candidate).ok()?;
     if !["https", "http"].contains(&url.scheme())
@@ -28,6 +43,18 @@ pub fn recognized_url(candidate: &str) -> Option<Url> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn actions_identify_validated_providers() {
+        assert_eq!(
+            action_label("https://meet.google.com/abc-defg-hij"),
+            Some("Open Google Meet")
+        );
+        assert_eq!(
+            action_label("https://us02web.zoom.us/j/84261573920"),
+            Some("Open Zoom")
+        );
+        assert_eq!(action_label("https://zoom.us.evil.test/j/123"), None);
+    }
     #[test]
     fn only_recognized_hosts() {
         for url in [

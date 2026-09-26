@@ -203,20 +203,35 @@ fn is_light(config: &Config) -> bool {
     }
 }
 fn desktop_open(target: &std::ffi::OsStr) {
-    match Command::new("xdg-open")
+    launch_desktop(Command::new("xdg-open").arg(target));
+}
+fn open_settings(target: &std::ffi::OsStr) {
+    // Terminal editors need a visible terminal, not the service's stdin.
+    let result = Command::new("omarchy")
+        .args(["launch", "editor"])
         .arg(target)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    {
+        .spawn();
+    if matches!(&result, Err(error) if error.kind() == std::io::ErrorKind::NotFound) {
+        desktop_open(target);
+    } else {
+        watch_desktop_child(result);
+    }
+}
+fn launch_desktop(command: &mut Command) {
+    watch_desktop_child(command.stdin(Stdio::null()).stdout(Stdio::null()).spawn());
+}
+fn watch_desktop_child(result: std::io::Result<std::process::Child>) {
+    match result {
         Ok(mut child) => {
             std::thread::spawn(move || match child.wait() {
                 Ok(status) if status.success() => {}
-                _ => tracing::warn!("desktop opener failed"),
+                Ok(status) => tracing::warn!(%status, "desktop opener failed"),
+                Err(error) => tracing::warn!(%error, "could not wait for desktop opener"),
             });
         }
-        Err(_) => tracing::warn!("could not start desktop opener"),
+        Err(error) => tracing::warn!(%error, "could not start desktop opener"),
     }
 }
 fn now_minutes() -> f32 {
@@ -717,7 +732,7 @@ impl PointerHandler for App {
                             PopupKind::Menu => match p.hovered {
                                 Some(0) => self.refresh(),
                                 Some(1) => {
-                                    desktop_open(self.config_path.as_os_str());
+                                    open_settings(self.config_path.as_os_str());
                                     self.close_popup();
                                 }
                                 Some(2) => self.exit = true,

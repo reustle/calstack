@@ -232,7 +232,7 @@ pub fn strip(
             palette.background,
             block.events.len(),
         );
-        c.rect(block.rect, color, alpha);
+        c.rect(block.rect, color, alpha as f32);
     }
     // Small, right-aligned labels mark every hour over event fills.
     for hour in ((start + 59) / 60)..=((end - 1) / 60) {
