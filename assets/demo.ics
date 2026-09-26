@@ -25,8 +25,8 @@ DTSTAMP:20260925T000000Z
 DTSTART:20260925T093000
 DTEND:20260925T100000
 RRULE:FREQ=DAILY
-SUMMARY:Demo standup - Google Meet
-URL:https://meet.google.com/xxx-xxxx-xxx
+SUMMARY:Team standup
+URL:https://meet.google.com/abc-defg-hjk
 END:VEVENT
 BEGIN:VEVENT
 UID:overlap@demo.calstack.invalid
@@ -50,8 +50,8 @@ DTSTAMP:20260925T000000Z
 DTSTART:20260925T143000
 DTEND:20260925T151500
 RRULE:FREQ=DAILY
-SUMMARY:Demo design review - Zoom
-LOCATION:https://zoom.us/j/00000000000
+SUMMARY:Design review
+LOCATION:https://us02web.zoom.us/j/84261573920
 END:VEVENT
 BEGIN:VEVENT
 UID:teams@demo.calstack.invalid
@@ -59,9 +59,8 @@ DTSTAMP:20260925T000000Z
 DTSTART:20260925T170000
 DTEND:20260925T173000
 RRULE:FREQ=DAILY
-SUMMARY:Demo planning - Teams
-DESCRIPTION:Sample link: https://teams.microsoft.com/l/meetup-join/calstack
- -demo
+SUMMARY:Sprint planning
+DESCRIPTION:Join: https://meet.google.com/mnp-qrst-vwx
 END:VEVENT
 BEGIN:VEVENT
 UID:evening@demo.calstack.invalid

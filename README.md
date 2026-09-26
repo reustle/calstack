@@ -1,5 +1,9 @@
 # Calstack
 
+![Calstack calendar strip on the Omarchy desktop](assets/screenshots/fullscreen.png)
+
+![Single-event popup with a Google Meet action](assets/screenshots/single-event.png)
+
 A small native calendar strip for Omarchy/Hyprland. This first prototype
 implements milestones 0–2 from [PLAN.md](PLAN.md), plus meeting-link validation
 and basic configuration. It uses one **built-in fictional calendar**, repeating
@@ -43,8 +47,8 @@ journalctl --user -u calstack-demo
   tiled windows stop before its left edge.
 - Events occupy 06:00–24:00. Events remain full-width; two-event overlaps are grey and three-event
   overlaps are darker shades of the theme’s muted color. Past events are muted.
-  The red marker updates every 30 seconds. Hourly ticks have tiny labels every
-  two hours (6, 8, 10, …). The topmost tick is omitted.
+  The red marker updates every 30 seconds. Small, right-aligned numbers label
+  every hour (6, 7, 8, …), without tick marks.
 - Hover over a colored block for its title, start/end, duration, and calendar.
   Move left into the tooltip to keep it visible. Tooltips wait 150 ms before
   opening and allow 180 ms for crossing between surfaces before dismissing.

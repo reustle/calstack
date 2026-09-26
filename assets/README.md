@@ -6,8 +6,8 @@ the system timezone (currently Asia/Tokyo).
 
 It covers morning and evening events, a three-way overlap at 09:45, clipping
 at 06:00 and midnight, and an all-day event that should be hidden by default.
-Google Meet, Zoom, and Teams placeholder links appear in URL, location, and
-description fields respectively. These are not working meeting invitations;
+Google Meet and Zoom links with fictional meeting IDs appear in URL, location,
+and description fields. These are not working meeting invitations;
 opening one can reach the provider's website.
 
 For the initial static prototype, use these events as the demo schedule.
