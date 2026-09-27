@@ -2,12 +2,13 @@ use anyhow::{bail, Context, Result};
 use calstack_core::{
     config::Config,
     demo_events,
+    feeds::{self, FeedUpdate},
     layout::{self, Block, MENU_HEIGHT},
     meeting::recognized_url,
     Event,
 };
 use calstack_render::{Canvas, Palette, TextRenderer};
-use chrono::{Local, Timelike};
+use chrono::{Local, NaiveDate, Timelike};
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
@@ -72,6 +73,11 @@ struct App {
     config: Config,
     config_path: PathBuf,
     events: Vec<Event>,
+    demo: bool,
+    feed_results: Option<std::sync::mpsc::Receiver<FeedUpdate>>,
+    feed_pending: bool,
+    feed_due: Instant,
+    feed_day: NaiveDate,
     blocks: Vec<Block>,
     width: u32,
     height: u32,
@@ -88,7 +94,7 @@ struct App {
     exit: bool,
 }
 
-pub fn run(config: Config, config_path: PathBuf) -> Result<()> {
+pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
     let conn = Connection::connect_to_env()
         .context("connect to Wayland; run inside your desktop session")?;
     let (globals, mut queue) = registry_queue_init(&conn)?;
@@ -121,7 +127,12 @@ pub fn run(config: Config, config_path: PathBuf) -> Result<()> {
         theme_due: Instant::now() + Duration::from_secs(2),
         config,
         config_path,
-        events: demo_events(),
+        events: if demo { demo_events() } else { Vec::new() },
+        demo,
+        feed_results: None,
+        feed_pending: false,
+        feed_due: Instant::now(),
+        feed_day: Local::now().date_naive(),
         blocks: Vec::new(),
         hovered: Vec::new(),
         pointer_y: 0.0,
@@ -162,9 +173,16 @@ pub fn run(config: Config, config_path: PathBuf) -> Result<()> {
     WaylandSource::new(conn.clone(), queue)
         .insert(event_loop.handle())
         .map_err(|e| anyhow::anyhow!("Wayland event source: {e}"))?;
-    tracing::info!("Calstack demo started; bottom ⋮ menu has Refresh / Settings / Quit");
+    app.start_feed_refresh();
+    tracing::info!("Calstack started; bottom ⋮ menu has Refresh / Settings / Quit");
     while !app.exit {
         let mut deadline = app.tick_due.min(app.theme_due);
+        if !app.demo && app.feed_results.is_none() {
+            deadline = deadline.min(app.feed_due);
+        }
+        if app.feed_results.is_some() {
+            deadline = deadline.min(Instant::now() + Duration::from_millis(200));
+        }
         if let Some(due) = app.hover_due {
             deadline = deadline.min(due);
         }
@@ -396,6 +414,13 @@ impl App {
                     tracing::warn!("monitor changes require restarting Calstack");
                     config.display.monitor = self.config.display.monitor.clone();
                 }
+                self.events.retain(|event| {
+                    config.calendar.feeds.iter().any(|new| {
+                        new.enabled
+                            && new.name == event.calendar
+                            && self.config.calendar.feeds.iter().any(|old| old == new)
+                    })
+                });
                 self.config = config;
                 self.width = self.config.display.width;
                 self.palette = palette_for(&self.config);
@@ -408,19 +433,114 @@ impl App {
                     });
                     layer.commit();
                 }
-                self.events = demo_events();
+                if self.demo {
+                    self.events = demo_events();
+                }
+                self.start_feed_refresh();
                 self.hovered.clear();
                 self.hover_due = None;
                 self.close_popup();
                 self.layout();
                 self.draw_strip();
-                tracing::info!("reloaded configuration and demo calendar");
+                tracing::info!("reloaded configuration and requested calendar refresh");
             }
             Err(error) => tracing::warn!(%error,"configuration unchanged"),
         }
     }
+    fn start_feed_refresh(&mut self) {
+        if self.demo {
+            return;
+        }
+        self.feed_due =
+            Instant::now() + Duration::from_secs(self.config.calendar.refresh_minutes * 60);
+        if self.feed_results.is_some() {
+            self.feed_pending = true;
+            return;
+        }
+        self.feed_pending = false;
+        let feeds = self.config.calendar.feeds.clone();
+        let date = self.feed_day;
+        let cache = feeds::cache_dir();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        self.feed_results = Some(receiver);
+        std::thread::spawn(move || {
+            if sender
+                .send(feeds::load(&feeds, &cache, date, false))
+                .is_ok()
+            {
+                for feed in &feeds {
+                    if sender
+                        .send(feeds::load(std::slice::from_ref(feed), &cache, date, true))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+        });
+    }
+    fn poll_feeds(&mut self) {
+        let mut updates = Vec::new();
+        let mut finished = false;
+        if let Some(receiver) = &self.feed_results {
+            loop {
+                match receiver.try_recv() {
+                    Ok(update) => updates.push(update),
+                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if !self.feed_pending {
+            for update in updates {
+                for warning in update.warnings {
+                    tracing::warn!("{warning}");
+                }
+                if update.calendars.is_empty() {
+                    continue;
+                }
+                let previous = self.events.clone();
+                for (name, events) in update.calendars {
+                    self.events.retain(|event| event.calendar != name);
+                    self.events.extend(events);
+                }
+                self.events.sort_by_key(|event| (event.start, event.end));
+                if self.events == previous {
+                    continue;
+                }
+                self.hovered.clear();
+                self.hover_due = None;
+                self.close_popup();
+                self.layout();
+                self.draw_strip();
+            }
+        }
+        if finished {
+            self.feed_results = None;
+            if self.feed_pending {
+                self.start_feed_refresh();
+            }
+        }
+    }
     fn timers(&mut self, qh: &QueueHandle<Self>) {
         let now = Instant::now();
+        let today = Local::now().date_naive();
+        if !self.demo && today != self.feed_day {
+            self.feed_day = today;
+            self.events.clear();
+            self.hovered.clear();
+            self.hover_due = None;
+            self.close_popup();
+            self.layout();
+            self.draw_strip();
+            self.start_feed_refresh();
+        } else if !self.demo && self.feed_due <= now && self.feed_results.is_none() {
+            self.start_feed_refresh();
+        }
+        self.poll_feeds();
         if self.theme_due <= now {
             self.theme_due = now + Duration::from_secs(2);
             if let Ok(settings) = crate::typography::settings() {

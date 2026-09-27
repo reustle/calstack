@@ -4,11 +4,10 @@
 
 ![Single-event popup with a Google Meet action](assets/screenshots/single-event.png)
 
-A small native calendar strip for Omarchy/Hyprland. This first prototype
-implements milestones 0–2 from [PLAN.md](PLAN.md), plus meeting-link validation
-and basic configuration. It uses one **built-in fictional calendar**, repeating
-at local wall-clock times every day. ICS ingestion, remote feeds, caching,
-autostart installation, and a graphical settings editor are not implemented yet.
+A small native calendar strip for Omarchy/Hyprland. Load local ICS files or
+remote HTTP/HTTPS/webcal subscriptions, view today's events, and open meeting
+links from their cards. Downloads run in the background, with last-good disk
+caching for offline use. Use `--demo` for the fictional calendar in the screenshots.
 
 ## Run
 
@@ -61,7 +60,7 @@ journalctl --user -u calstack-demo
 - Click the bottom `⋮` for **Refresh**, **Settings**, or **Quit**. Settings opens
   the TOML config in Omarchy's selected editor (including a terminal window for
   terminal editors), or the default associated application on other desktops; Refresh
-  reloads the config and demo schedule. Invalid edits keep the previous config
+  reloads the config and refreshes calendars. Invalid edits keep the previous config
   and log a warning.
 
 Config is created on first launch at `$XDG_CONFIG_HOME/calstack/config.toml`
@@ -83,9 +82,70 @@ Omarchy, startup falls back to the desktop's light/dark preference.
 ./target/release/calstack --log calstack_platform=debug
 ```
 
-`--check` validates config and prints the demo schedule without a Wayland
-connection. A missing config is initialized with defaults. `--demo` is explicit
-for clarity; this prototype also defaults to the demo calendar without it.
+`--check` validates config, fetches the configured calendars (falling back to
+cache), and prints today's events without a Wayland connection. Add `--demo`
+to check the fictional schedule instead. A missing config is initialized with
+defaults. Without `--demo`, an empty feed list shows an empty strip.
+
+## Calendar subscriptions
+
+Add named feeds to `~/.config/calstack/config.toml`. Use the provider's ICS
+subscription URL, rather than its calendar webpage. These are read-only
+subscriptions; CalDAV accounts, OAuth, and calendar editing are not supported.
+
+```toml
+[calendar]
+refresh_minutes = 10
+
+[[calendar.feeds]]
+name = "Work"
+url = "https://example.com/private/calendar.ics"
+color = "#7F9BB3"
+enabled = true
+
+[[calendar.feeds]]
+name = "Personal"
+url = "webcal://example.com/personal.ics"
+color = "#91AA8A"
+
+[[calendar.feeds]]
+name = "Local"
+path = "/home/you/calendars/personal.ics"
+enabled = false
+```
+
+Each entry needs a unique name and exactly one `url` or `path`. Colors are
+optional; enabled defaults to true. Relative paths resolve against the config
+file's directory. Merge with any existing `[calendar]` section rather than
+adding it twice. Choose **Refresh** after editing. Launch without `--demo` to
+use your feeds:
+
+```sh
+./target/release/calstack --check
+./target/release/calstack
+```
+
+`webcal://` is fetched over HTTPS. Requests have a 20-second timeout, a 10 MiB
+size limit, and support ETag/Last-Modified revalidation. Cached ICS data lives
+under `$XDG_CACHE_HOME/calstack/calendars` (normally `~/.cache/calstack/calendars`),
+with private file permissions and hashed filenames. Feed URLs and event content
+are omitted from feed-error logs. Failed downloads or unsupported responses
+keep the last good data for that calendar; other feeds can still update.
+Refresh intervals range from 1 to 1440 minutes, and the day is recalculated at
+local midnight, including after resume.
+
+Supported ICS features include folded/escaped text, UTC and floating local times,
+IANA `TZID` timezones, `DTEND` or `DURATION`, `RRULE`, `RDATE`, `EXDATE`, individual
+`RECURRENCE-ID` overrides, cancellations, and multi-day timed events. Meeting
+links are extracted from URL, location, then description. All-day entries are
+intentionally hidden from the timed strip.
+
+This is not full RFC 5545 coverage: custom `VTIMEZONE` definitions, Windows
+TZID names, `RANGE=THISANDFUTURE`, `RDATE` periods, and `EXRULE` are unsupported.
+IANA timezone names use the bundled timezone database. A feed requiring an
+unsupported feature retains its last good cache and logs a warning. Recurrence
+expansion is bounded; very dense/long-running rules may exceed the safety limit.
+Event durations longer than 366 days are rejected.
 
 ## Development
 
@@ -96,8 +156,8 @@ cargo fmt --all -- --check
 cargo build --release
 ```
 
-- `calstack-core`: platform-independent config, demo events, clipping, overlap
-  segments, hit testing, and meeting-provider validation.
+- `calstack-core`: config, ICS parsing/recurrence, feed downloads/cache, demo
+  events, clipping, overlap segments, hit testing, and meeting-provider validation.
 - `calstack-render`: software rasterization and system-font text rendering.
 - `calstack-platform`: Wayland shared-memory surfaces, pointer input, desktop
   appearance, URL opening, and the event loop.
@@ -117,9 +177,9 @@ GTK 4/3 `gtk-font-name` or the desktop's `font-name`/`text-scaling-factor` suppl
 the fallback font and size (point sizes are converted to logical pixels).
 The strip's tiny hour numbers deliberately stay at **6 logical pixels**.
 
-[assets/demo.ics](assets/demo.ics) is the companion fixture for future ICS
-loading. The prototype uses the equivalent static timed schedule in the core;
-edits to that ICS file do not change the running demo. All-day events are not
-rendered. Disconnecting the selected monitor closes the prototype. Fullscreen,
-suspend/resume, multi-monitor hotplug, and arbitrary ICS timezone/recurrence
-behavior still need the later milestones and verification.
+[assets/demo.ics](assets/demo.ics) is a local ICS fixture you can load using a
+feed `path`. `--demo` still uses its built-in static schedule and does not read
+that file. Disconnecting the selected monitor closes the app. Fullscreen,
+suspend/resume, and multi-monitor hotplug need broader desktop verification.
+Autostart installation, packaging, and a graphical settings editor remain on
+the [roadmap](PLAN.md).

@@ -10,3 +10,9 @@ chrono.workspace = true
 serde.workspace = true
 toml.workspace = true
 url = "2"
+ical = { version = "0.11", default-features = false, features = ["ical"] }
+rrule = "0.14"
+chrono-tz = "0.10"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+serde_json = "1"
+sha2 = "0.10"

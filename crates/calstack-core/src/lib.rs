@@ -1,8 +1,10 @@
+pub mod calendar;
 pub mod config;
+pub mod feeds;
 pub mod layout;
 pub mod meeting;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Event {
     pub title: String,
     pub calendar: String,
@@ -13,8 +15,8 @@ pub struct Event {
     pub color: Option<[u8; 3]>,
 }
 
-/// Milestone 2's deliberately static calendar. Times repeat each local day.
-/// assets/demo.ics is the equivalent fixture for the later ICS milestone.
+/// Explicit demo mode's static calendar. Times repeat each local day.
+/// assets/demo.ics is the equivalent fixture for the ICS feed loader.
 pub fn demo_events() -> Vec<Event> {
     [
         ("Early focus", 330, 390, None),

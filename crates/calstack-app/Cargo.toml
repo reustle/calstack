@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+chrono.workspace = true
 calstack-core.workspace = true
 calstack-platform.workspace = true
 tracing-subscriber.workspace = true

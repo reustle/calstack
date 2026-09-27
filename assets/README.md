@@ -10,11 +10,7 @@ Google Meet and Zoom links with fictional meeting IDs appear in URL, location,
 and description fields. These are not working meeting invitations;
 opening one can reach the provider's website.
 
-For the initial static prototype, use these events as the demo schedule.
-Loading this file itself requires the local ICS and daily recurrence milestones.
-
-Once config loading and ICS support exist, add this feed using the schema from
-PLAN.md section 22 (replace the path if the repository moves):
+Add this fixture as a local feed (replace the path with the repository location):
 
 ```toml
 [[calendar.feeds]]

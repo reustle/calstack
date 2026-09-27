@@ -4,21 +4,18 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(
-    version,
-    about = "Calstack: a tiny Wayland calendar strip (demo prototype)"
-)]
+#[command(version, about = "Calstack: a tiny Wayland calendar strip")]
 struct Args {
     /// Configuration file; defaults to $XDG_CONFIG_HOME/calstack/config.toml.
     #[arg(long)]
     config: Option<PathBuf>,
-    /// Use the built-in fictional calendar (currently the only calendar source).
+    /// Use the built-in fictional calendar instead of configured feeds.
     #[arg(long)]
     demo: bool,
     /// Logging filter, e.g. info or calstack_platform=debug.
     #[arg(long, default_value = "info")]
     log: String,
-    /// Validate config and print the demo schedule without connecting to Wayland.
+    /// Validate config, load calendars, and print today’s events without Wayland.
     #[arg(long)]
     check: bool,
 }
@@ -41,7 +38,29 @@ fn main() -> Result<()> {
     let config = Config::load(&path)?;
     if args.check {
         println!("Configuration valid: {}", path.display());
-        for event in calstack_core::demo_events() {
+        let events = if args.demo {
+            calstack_core::demo_events()
+        } else {
+            let update = calstack_core::feeds::load(
+                &config.calendar.feeds,
+                &calstack_core::feeds::cache_dir(),
+                chrono::Local::now().date_naive(),
+                true,
+            );
+            for warning in &update.warnings {
+                eprintln!("{warning}");
+            }
+            let expected = config.calendar.feeds.iter().filter(|f| f.enabled).count();
+            if update.calendars.len() != expected {
+                anyhow::bail!("one or more calendars could not be loaded and have no usable cache");
+            }
+            update
+                .calendars
+                .into_iter()
+                .flat_map(|(_, events)| events)
+                .collect()
+        };
+        for event in events {
             println!(
                 "{}–{}  {}",
                 calstack_core::time_label(event.start),
@@ -51,5 +70,5 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
-    calstack_platform::run(config, path)
+    calstack_platform::run(config, path, args.demo)
 }

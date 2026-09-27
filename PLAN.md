@@ -1,5 +1,12 @@
 # Calstack — Omarchy Build Plan
 
+Current implementation: native strip and event cards, explicit demo mode, local
+and remote ICS feeds, bounded recurrence expansion, meeting-link extraction,
+background refresh, conditional HTTP requests, and last-good disk caching.
+See README for the supported ICS subset and remaining limitations. The sections
+below describe the target design; custom timezone rules, remaining recurrence
+edge cases, packaging/autostart, and graphical settings are still future work.
+
 ## 1. Goal
 
 Build a very lightweight vertical calendar strip for Omarchy/Hyprland that sits on the far-right edge of the screen and behaves more like a desktop panel than a normal app window.
@@ -524,13 +531,13 @@ V1 supports:
 Example config:
 
 ```toml
-[[calendar]]
+[[calendar.feeds]]
 name = "Work"
 url = "https://example.com/work.ics"
 color = "#7F9BB3"
 enabled = true
 
-[[calendar]]
+[[calendar.feeds]]
 name = "Personal"
 path = "/home/user/calendars/personal.ics"
 color = "#91AA8A"
