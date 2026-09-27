@@ -78,7 +78,7 @@ fn parse(colors: &str, shell: &str, user: &str) -> Result<Palette> {
         text,
         muted: text,
         event,
-        border: get("selection").unwrap_or(event),
+        border: get("border").unwrap_or_else(|| mix(background, text, 0.16)),
         card: mix(background, normal, fill),
         now: get("bar.active").or_else(|| get("red")).unwrap_or(text),
     })

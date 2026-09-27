@@ -204,16 +204,6 @@ pub fn strip(
     palette: Palette,
 ) -> Canvas {
     let mut c = Canvas::new(width, height, scale, palette.background);
-    c.rect(
-        Rect {
-            x: 0.0,
-            y: 0.0,
-            width: 1.0,
-            height: height as f32,
-        },
-        palette.border,
-        1.0,
-    );
     let (start, end) = config.range();
     let drawable = (height as f32 - MENU_HEIGHT).max(1.0);
     for block in blocks {
