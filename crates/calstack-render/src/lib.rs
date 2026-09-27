@@ -234,21 +234,9 @@ pub fn strip(
         );
         c.rect(block.rect, color, alpha as f32);
     }
-    // Small, right-aligned labels mark every hour over event fills.
+    // Hour labels use the theme foreground, including over event fills.
     for hour in ((start + 59) / 60)..=((end - 1) / 60) {
         let y = y_at((hour * 60) as f32, start, end, drawable);
-        let sample_x = (width as f32 * c.scale / 2.0) as usize;
-        let sample_y = ((y + 4.0) * c.scale).min(c.height as f32 - 1.0) as usize;
-        let pixel = (sample_y * c.width as usize + sample_x) * 4;
-        let brightness = (u32::from(c.pixels[pixel])
-            + u32::from(c.pixels[pixel + 1])
-            + u32::from(c.pixels[pixel + 2]))
-            / 3;
-        let ink = if brightness > 100 {
-            palette.background
-        } else {
-            palette.muted
-        };
         if y + 9.0 < drawable {
             let label = hour.to_string();
             let size = 6.0_f32.min(width as f32 - 2.0);
@@ -258,7 +246,7 @@ pub fn strip(
                 &label,
                 (width as f32 - label_width - 1.0, y + 7.5),
                 size,
-                ink,
+                palette.text,
                 width as f32 - 1.0,
             );
         }
