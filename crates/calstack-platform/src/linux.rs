@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use calstack_core::{
     config::Config,
     demo_events,
@@ -33,7 +33,7 @@ use smithay_client_toolkit::{
 use std::{
     path::PathBuf,
     process::{Command, Stdio},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 use wayland_client::{
     globals::registry_queue_init,
@@ -72,6 +72,9 @@ struct App {
     font_settings: crate::typography::FontSettings,
     config: Config,
     config_path: PathBuf,
+    config_stamp: Option<(SystemTime, u64)>,
+    last_wall: SystemTime,
+    last_timer: Instant,
     events: Vec<Event>,
     demo: bool,
     feed_results: Option<std::sync::mpsc::Receiver<FeedUpdate>>,
@@ -95,8 +98,36 @@ struct App {
 }
 
 pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
-    let conn = Connection::connect_to_env()
-        .context("connect to Wayland; run inside your desktop session")?;
+    if std::env::var_os("WAYLAND_DISPLAY").is_none() && std::env::var_os("WAYLAND_SOCKET").is_none()
+    {
+        anyhow::bail!("run Calstack inside a Wayland desktop session");
+    }
+    let mut waiting = false;
+    loop {
+        let conn = match Connection::connect_to_env() {
+            Ok(conn) => conn,
+            Err(_) => {
+                if !waiting {
+                    tracing::warn!("waiting for the Wayland compositor");
+                }
+                waiting = true;
+                std::thread::sleep(Duration::from_secs(2));
+                continue;
+            }
+        };
+        waiting = false;
+        let current = Config::load(&config_path).unwrap_or_else(|_| config.clone());
+        match run_session(conn.clone(), current, config_path.clone(), demo) {
+            Ok(()) => return Ok(()),
+            Err(_) if conn.backend().last_error().is_some() => {
+                tracing::warn!("Wayland connection lost; reconnecting");
+                std::thread::sleep(Duration::from_secs(2));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+fn run_session(conn: Connection, config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
     let (globals, mut queue) = registry_queue_init(&conn)?;
     let qh = queue.handle();
     let compositor = CompositorState::bind(&globals, &qh)?;
@@ -126,7 +157,10 @@ pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
         palette,
         theme_due: Instant::now() + Duration::from_secs(2),
         config,
+        config_stamp: config_stamp(&config_path),
         config_path,
+        last_wall: SystemTime::now(),
+        last_timer: Instant::now(),
         events: if demo { demo_events() } else { Vec::new() },
         demo,
         feed_results: None,
@@ -145,30 +179,7 @@ pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
     };
     // Receive output metadata before selecting a named monitor.
     queue.roundtrip(&mut app)?;
-    let name = &app.config.display.monitor;
-    app.output = app.outputs.outputs().find(|o| {
-        name == "primary" || app.outputs.info(o).and_then(|i| i.name).as_deref() == Some(name)
-    });
-    if app.output.is_none() {
-        bail!("no connected output matches monitor {name:?}");
-    }
-    let layer = app.shell.create_layer_surface(
-        &qh,
-        app.compositor.create_surface(&qh),
-        Layer::Top,
-        Some("calstack"),
-        app.output.as_ref(),
-    );
-    layer.set_anchor(Anchor::TOP | Anchor::RIGHT | Anchor::BOTTOM);
-    layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-    layer.set_size(app.width, 0);
-    layer.set_exclusive_zone(if app.config.display.reserve_space {
-        app.width as i32
-    } else {
-        0
-    });
-    layer.commit();
-    app.strip = Some(layer);
+    app.ensure_output(&qh, None);
     let mut event_loop: EventLoop<App> = EventLoop::try_new()?;
     WaylandSource::new(conn.clone(), queue)
         .insert(event_loop.handle())
@@ -224,17 +235,14 @@ fn desktop_open(target: &std::ffi::OsStr) {
     launch_desktop(Command::new("xdg-open").arg(target));
 }
 fn open_settings(target: &std::ffi::OsStr) {
-    // Terminal editors need a visible terminal, not the service's stdin.
-    let result = Command::new("omarchy")
-        .args(["launch", "editor"])
-        .arg(target)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .spawn();
-    if matches!(&result, Err(error) if error.kind() == std::io::ErrorKind::NotFound) {
-        desktop_open(target);
-    } else {
-        watch_desktop_child(result);
+    match std::env::current_exe() {
+        Ok(executable) => launch_desktop(
+            Command::new(executable)
+                .arg("--settings")
+                .arg("--config")
+                .arg(target),
+        ),
+        Err(error) => tracing::warn!(%error, "could not open settings"),
     }
 }
 fn launch_desktop(command: &mut Command) {
@@ -257,7 +265,64 @@ fn now_minutes() -> f32 {
     now.hour() as f32 * 60.0 + now.minute() as f32 + now.second() as f32 / 60.0
 }
 
+fn config_stamp(path: &std::path::Path) -> Option<(SystemTime, u64)> {
+    let meta = std::fs::metadata(path).ok()?;
+    Some((meta.modified().ok()?, meta.len()))
+}
+fn resumed(previous: SystemTime, current: SystemTime, elapsed: Duration) -> bool {
+    match current.duration_since(previous) {
+        Ok(wall) => wall > elapsed + Duration::from_secs(30),
+        Err(_) => true,
+    }
+}
 impl App {
+    fn ensure_output(&mut self, qh: &QueueHandle<Self>, removed: Option<&wl_output::WlOutput>) {
+        let outputs: Vec<_> = self
+            .outputs
+            .outputs()
+            .filter(|o| Some(o) != removed)
+            .collect();
+        let desired = outputs
+            .iter()
+            .find(|o| {
+                self.outputs.info(o).and_then(|i| i.name).as_deref()
+                    == Some(&self.config.display.monitor)
+            })
+            .or_else(|| outputs.iter().find(|o| Some(*o) == self.output.as_ref()))
+            .or_else(|| outputs.first())
+            .cloned();
+        if self.output == desired && self.strip.is_some() {
+            return;
+        }
+        self.close_popup();
+        self.strip = None;
+        self.output = desired;
+        self.hovered.clear();
+        self.hover_due = None;
+        self.scale = 1;
+        self.height = 0;
+        self.blocks.clear();
+        if self.output.is_none() {
+            return;
+        }
+        let layer = self.shell.create_layer_surface(
+            qh,
+            self.compositor.create_surface(qh),
+            Layer::Top,
+            Some("calstack"),
+            self.output.as_ref(),
+        );
+        layer.set_anchor(Anchor::TOP | Anchor::RIGHT | Anchor::BOTTOM);
+        layer.set_keyboard_interactivity(KeyboardInteractivity::None);
+        layer.set_size(self.config.display.width, 0);
+        layer.set_exclusive_zone(if self.config.display.reserve_space {
+            self.config.display.width as i32
+        } else {
+            0
+        });
+        layer.commit();
+        self.strip = Some(layer);
+    }
     fn layout(&mut self) {
         let (start, end) = self.config.range();
         self.blocks = layout::layout(
@@ -278,7 +343,8 @@ impl App {
                 wl_shm::Format::Argb8888,
             )
             .expect("allocate shared-memory buffer");
-        pixels.copy_from_slice(&canvas.pixels);
+        // SlotPool may round its allocation up; only the image bytes are pixels.
+        pixels[..canvas.pixels.len()].copy_from_slice(&canvas.pixels);
         surface.set_buffer_scale(scale as i32);
         surface.damage_buffer(0, 0, canvas.width as i32, canvas.height as i32);
         buffer
@@ -407,13 +473,9 @@ impl App {
             hovered: None,
         });
     }
-    fn refresh(&mut self) {
+    fn refresh(&mut self, qh: &QueueHandle<Self>) {
         match Config::load(&self.config_path) {
-            Ok(mut config) => {
-                if config.display.monitor != self.config.display.monitor {
-                    tracing::warn!("monitor changes require restarting Calstack");
-                    config.display.monitor = self.config.display.monitor.clone();
-                }
+            Ok(config) => {
                 self.events.retain(|event| {
                     config.calendar.feeds.iter().any(|new| {
                         new.enabled
@@ -422,6 +484,15 @@ impl App {
                     })
                 });
                 self.config = config;
+                if !self.demo {
+                    if let Err(error) = crate::desktop::sync_autostart(
+                        self.config.startup.autostart,
+                        &self.config_path,
+                    ) {
+                        tracing::warn!(%error, "could not apply start-at-login setting");
+                    }
+                }
+                self.ensure_output(qh, None);
                 self.width = self.config.display.width;
                 self.palette = palette_for(&self.config);
                 if let Some(layer) = &self.strip {
@@ -527,6 +598,10 @@ impl App {
     }
     fn timers(&mut self, qh: &QueueHandle<Self>) {
         let now = Instant::now();
+        let wall = SystemTime::now();
+        let woke = resumed(self.last_wall, wall, now.duration_since(self.last_timer));
+        self.last_wall = wall;
+        self.last_timer = now;
         let today = Local::now().date_naive();
         if !self.demo && today != self.feed_day {
             self.feed_day = today;
@@ -537,12 +612,17 @@ impl App {
             self.layout();
             self.draw_strip();
             self.start_feed_refresh();
-        } else if !self.demo && self.feed_due <= now && self.feed_results.is_none() {
+        } else if !self.demo && (woke || self.feed_due <= now) && self.feed_results.is_none() {
             self.start_feed_refresh();
         }
         self.poll_feeds();
         if self.theme_due <= now {
             self.theme_due = now + Duration::from_secs(2);
+            let stamp = config_stamp(&self.config_path);
+            if stamp != self.config_stamp {
+                self.config_stamp = stamp;
+                self.refresh(qh);
+            }
             if let Ok(settings) = crate::typography::settings() {
                 if settings != self.font_settings {
                     if let Ok(text) = crate::typography::renderer(&settings) {
@@ -666,23 +746,27 @@ impl OutputHandler for App {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.outputs
     }
-    fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
-    fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
+    fn new_output(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: wl_output::WlOutput) {
+        self.ensure_output(qh, None);
+    }
+    fn update_output(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: wl_output::WlOutput) {
+        self.ensure_output(qh, None);
+    }
     fn output_destroyed(
         &mut self,
         _: &Connection,
-        _: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
         output: wl_output::WlOutput,
     ) {
-        if self.output.as_ref() == Some(&output) {
-            self.exit = true;
-        }
+        self.ensure_output(qh, Some(&output));
     }
 }
+
 impl LayerShellHandler for App {
-    fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, layer: &LayerSurface) {
+    fn closed(&mut self, _: &Connection, qh: &QueueHandle<Self>, layer: &LayerSurface) {
         if self.strip.as_ref() == Some(layer) {
-            self.exit = true;
+            self.strip = None;
+            self.ensure_output(qh, None);
         } else if self.popup.as_ref().is_some_and(|p| p.layer == *layer) {
             self.close_popup();
         }
@@ -850,7 +934,7 @@ impl PointerHandler for App {
                     } else if let Some(p) = &self.popup {
                         match p.kind.clone() {
                             PopupKind::Menu => match p.hovered {
-                                Some(0) => self.refresh(),
+                                Some(0) => self.refresh(qh),
                                 Some(1) => {
                                     open_settings(self.config_path.as_os_str());
                                     self.close_popup();
@@ -924,3 +1008,27 @@ delegate_seat!(App);
 delegate_pointer!(App);
 delegate_layer!(App);
 delegate_registry!(App);
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    #[test]
+    fn detects_sleep_and_clock_changes_without_refreshing_during_normal_idle() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1000);
+        assert!(!resumed(
+            start,
+            start + Duration::from_secs(2),
+            Duration::from_secs(2)
+        ));
+        assert!(resumed(
+            start,
+            start + Duration::from_secs(3600),
+            Duration::from_secs(2)
+        ));
+        assert!(resumed(
+            start,
+            start - Duration::from_secs(1),
+            Duration::from_secs(2)
+        ));
+    }
+}

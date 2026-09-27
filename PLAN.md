@@ -1,11 +1,15 @@
 # Calstack — Omarchy Build Plan
 
-Current implementation: native strip and event cards, explicit demo mode, local
-and remote ICS feeds, bounded recurrence expansion, meeting-link extraction,
-background refresh, conditional HTTP requests, and last-good disk caching.
-See README for the supported ICS subset and remaining limitations. The sections
-below describe the target design; custom timezone rules, remaining recurrence
-edge cases, packaging/autostart, and graphical settings are still future work.
+Current implementation includes milestones 0–8: the native strip, local and
+remote ICS subscriptions, caching, meeting links, desktop integration, XDG
+autostart, Arch packaging, and graphical settings. Embedded VTIMEZONE rules,
+Windows timezone names, THISANDFUTURE, RDATE periods, and EXRULE are supported.
+See [calendar support](docs/configuration.md) for bounds and exclusions and
+[verification](docs/development.md) for completed checks and remaining manual tests.
+
+The sections below preserve the original design direction. Implemented choices
+include a blocking HTTP worker thread (not Tokio) and an on-demand Python/GTK
+settings window; the strip, calendar engine, and renderer remain Rust.
 
 ## 1. Goal
 
@@ -15,7 +19,7 @@ The initial Linux build should be designed so the calendar/data/rendering core c
 
 ### Core behavior
 
-- ~12 px wide by default
+- ~13 px wide by default
 - pinned to the right edge
 - top-to-bottom height of the usable display
 - borderless: no title bar, window controls, frame, or normal app chrome
@@ -190,7 +194,7 @@ Recommended behavior:
 ```text
 layer: top
 anchor: top + right + bottom
-width: 12 px
+width: 13 px
 exclusive_zone: strip width
 keyboard_interactivity: none
 ```
@@ -229,7 +233,7 @@ Defaults:
 
 ```toml
 side = "right"
-width = 12
+width = 13
 day_start = "06:00"
 day_end = "24:00"
 monitor = "primary"
@@ -374,7 +378,7 @@ hovered: subtle contrast increase
 
 Avoid strong borders.
 
-Use a tiny radius only if it remains visually clean at ~12 px width.
+Use a tiny radius only if it remains visually clean at ~13 px width.
 
 ---
 
@@ -396,7 +400,7 @@ independently of the renderer.
 
 ## 13. Hover tooltip
 
-The tooltip must be a separate popup surface, not constrained to the 12 px strip.
+The tooltip must be a separate popup surface, not constrained to the 13 px strip.
 
 Default content:
 
@@ -686,7 +690,7 @@ Example:
 ```toml
 [display]
 side = "right"
-width = 12
+width = 13
 monitor = "primary"
 day_start = "06:00"
 day_end = "24:00"
@@ -920,24 +924,11 @@ calstack --log debug
 
 ## 31. Launch at login
 
-For Omarchy, support user-level startup.
-
-Prefer a standard user service or autostart mechanism rather than editing Hyprland config manually.
-
-A user-level `systemd` service is attractive:
-
-```text
-~/.config/systemd/user/calstack.service
-```
-
-Advantages:
-
-- restart policy
-- logs
-- explicit enable/disable
-- independent of Hyprland config files
-
-The app's Settings screen can eventually toggle this.
+Use the standard XDG autostart mechanism, controlled by `startup.autostart`
+in configuration or the Settings window. This works with session managers such
+as UWSM without editing Hyprland configuration or installing an Omarchy plugin.
+Calstack writes a managed desktop entry using the absolute installed executable
+and config paths. Autostart is opt-in; duplicate strip launches exit harmlessly.
 
 ---
 
@@ -1049,7 +1040,7 @@ Timezone behavior belongs in core and must be platform-independent.
 ### Milestone 1 — strip surface
 
 - Wayland layer-shell window
-- 12 px wide
+- 13 px wide
 - right edge
 - full height
 - no decorations
@@ -1059,7 +1050,7 @@ Timezone behavior belongs in core and must be platform-independent.
 
 Success criterion:
 
-> A stable 12 px vertical bar remains on top while using Omarchy normally.
+> A stable 13 px vertical bar remains on top while using Omarchy normally.
 
 ### Milestone 2 — static visual prototype
 
@@ -1311,7 +1302,7 @@ Build in this exact order:
 
 This minimizes risk.
 
-The most important unknown is the exact feel of a 10–12 px interactive strip. Prove that interaction model first before investing heavily in calendar ingestion.
+The most important unknown is the exact feel of a 10–13 px interactive strip. Prove that interaction model first before investing heavily in calendar ingestion.
 
 ---
 
@@ -1319,7 +1310,7 @@ The most important unknown is the exact feel of a 10–12 px interactive strip. 
 
 The first usable release is complete when:
 
-- launching `calstack` creates a ~12 px strip on the right edge in Omarchy
+- launching `calstack` creates a ~13 px strip on the right edge in Omarchy
 - it remains above normal applications
 - there is no standard window chrome
 - it reserves screen space by default, like desktop chrome

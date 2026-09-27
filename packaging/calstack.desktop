@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Calstack
+Comment=Calendar strip for Wayland
+Exec=calstack
+TryExec=calstack
+Icon=x-office-calendar
+Terminal=false
+Categories=Office;Calendar;
+Keywords=calendar;meetings;schedule;
+Actions=Settings;
+
+[Desktop Action Settings]
+Name=Settings
+Exec=calstack --settings

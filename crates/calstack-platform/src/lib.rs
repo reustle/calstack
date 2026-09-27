@@ -5,6 +5,9 @@ mod linux;
 pub use linux::run;
 
 #[cfg(target_os = "linux")]
+pub mod desktop;
+
+#[cfg(target_os = "linux")]
 mod theme;
 
 #[cfg(target_os = "linux")]

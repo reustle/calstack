@@ -3,6 +3,7 @@ pub mod config;
 pub mod feeds;
 pub mod layout;
 pub mod meeting;
+mod zones;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {

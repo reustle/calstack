@@ -8,6 +8,13 @@ pub struct Config {
     pub display: Display,
     pub appearance: Appearance,
     pub calendar: Calendar,
+    pub startup: Startup,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Startup {
+    pub autostart: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -87,7 +94,7 @@ pub struct Display {
 impl Default for Display {
     fn default() -> Self {
         Self {
-            width: 12,
+            width: 13,
             day_start: "06:00".into(),
             day_end: "24:00".into(),
             monitor: "primary".into(),

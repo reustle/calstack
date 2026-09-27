@@ -1,0 +1,52 @@
+# Development and verification
+
+The Cargo workspace separates calendar/configuration logic (`calstack-core`),
+software rendering (`calstack-render`), Wayland integration (`calstack-platform`),
+and the CLI/settings window (`calstack-app`). Python/GTK is launched only for
+Settings; it uses the Rust validation and persistence code to save changes.
+
+## Checks
+
+```sh
+make check
+cargo build --locked
+python3 scripts/test-settings.py  # Requires GTK 4 and a graphical session
+# On a headless machine: xvfb-run -a python3 scripts/test-settings.py
+desktop-file-validate packaging/calstack.desktop
+make dist
+```
+
+CI runs formatting, Clippy with warnings denied, Rust tests, GTK integration,
+desktop-entry validation, and staged install/uninstall checks. The workflow is
+provided in `.github/workflows/ci.yml`; local checks do not imply a hosted CI run.
+
+Tests cover recurrence exceptions, cancellations, custom/Windows timezones,
+DST gaps, nominal durations, range overrides, RDATE periods, EXRULE, cache
+revalidation, offline fallback, feed isolation, meeting links, layout, autostart,
+instance locking, settings validation, and preservation of external edits.
+Reusable calendar samples live in `assets/fixtures/`.
+
+## Desktop verification (September 2026)
+
+Checked on this Arch/Omarchy Hyprland session:
+
+- Installed launcher and opt-in XDG autostart; duplicate launches exit cleanly.
+- Native GTK settings controls, save path, and startup enable/disable.
+- Live width changes, including the 13-pixel default at fractional display scale.
+- Virtual monitor removal: fall back to the remaining display; restore the
+  selected monitor when it returns.
+- Fullscreen window enter/exit without terminating the strip.
+- Simulated disconnected Wayland socket: retry and recover when available.
+- Arch source/package build and the complete Rust test suite.
+
+One ten-second idle sample measured 0% CPU and about 119 MiB resident memory
+with this machine's fonts/calendar. This is a sample, not a memory or CPU bound;
+font memory is a candidate for further profiling. No continuous render loop runs.
+
+Still requiring real-session/hardware verification: physical suspend/resume,
+logout/login autostart, a complete compositor restart, and other compositors.
+Clock/suspend detection has unit coverage; socket recovery and virtual hotplug
+checks do not replace those tests. Fullscreen stacking follows compositor policy.
+
+The calendar engine is intentionally bounded and read-only. See
+[calendar support](configuration.md) for supported features and exclusions.

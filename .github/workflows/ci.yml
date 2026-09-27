@@ -1,0 +1,28 @@
+name: Checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install desktop test dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev fontconfig desktop-file-utils python3-gi gir1.2-gtk-4.0 xvfb
+      - name: Rust checks
+        run: make check
+      - name: Desktop entry
+        run: desktop-file-validate packaging/calstack.desktop
+      - name: Settings integration
+        run: |
+          cargo build --locked
+          xvfb-run -a /usr/bin/python3 scripts/test-settings.py
+      - name: Install and uninstall staging
+        run: |
+          make install DESTDIR="$RUNNER_TEMP/calstack-stage" PREFIX=/usr
+          test -x "$RUNNER_TEMP/calstack-stage/usr/bin/calstack"
+          make uninstall DESTDIR="$RUNNER_TEMP/calstack-stage" PREFIX=/usr
+          test ! -e "$RUNNER_TEMP/calstack-stage/usr/bin/calstack"
