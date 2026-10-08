@@ -26,6 +26,12 @@ struct Cached {
     etag: Option<String>,
     modified: Option<String>,
 }
+#[cfg(target_os = "macos")]
+pub fn cache_dir() -> PathBuf {
+    PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+        .join("Library/Caches/calstack/calendars")
+}
+#[cfg(not(target_os = "macos"))]
 pub fn cache_dir() -> PathBuf {
     std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)

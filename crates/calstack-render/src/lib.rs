@@ -30,7 +30,7 @@ impl Palette {
                 border: [214, 214, 210],
                 card: [255, 255, 252],
                 event: [93, 99, 108],
-                now: [93, 99, 108],
+                now: [255, 59, 48],
             }
         } else {
             Self {
@@ -40,7 +40,7 @@ impl Palette {
                 border: [58, 67, 82],
                 card: [34, 39, 48],
                 event: [157, 167, 183],
-                now: [157, 167, 183],
+                now: [255, 69, 58],
             }
         }
     }
@@ -222,7 +222,16 @@ pub fn strip(
             palette.background,
             block.events.len(),
         );
-        c.rect(block.rect, color, alpha as f32);
+        // One logical pixel shorter than the full block, so adjacent events
+        // show a hairline of background between them instead of touching.
+        c.rect(
+            Rect {
+                height: (block.rect.height - 1.0).max(0.0),
+                ..block.rect
+            },
+            color,
+            alpha as f32,
+        );
     }
     // Hour labels use the theme foreground, including over event fills.
     for hour in ((start + 59) / 60)..=((end - 1) / 60) {

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Calstack</string>
+	<key>CFBundleDisplayName</key>
+	<string>Calstack</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.calstack.app</string>
+	<key>CFBundleVersion</key>
+	<string>@VERSION@</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@VERSION@</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleExecutable</key>
+	<string>calstack</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<!-- Accessory: no Dock icon or app-switcher entry, matching the
+	     ActivationPolicy::Accessory already set at runtime in macos.rs.
+	     Both are kept so the raw binary behaves the same way unbundled. -->
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>MIT licensed.</string>
+</dict>
+</plist>

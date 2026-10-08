@@ -1,14 +1,19 @@
 use anyhow::{bail, Context, Result};
 use calstack_core::config::Config;
 use serde::Deserialize;
+use std::{fs, io::Read, path::Path};
+#[cfg(not(target_os = "macos"))]
 use std::{
-    fs,
-    io::{Read, Write},
-    os::unix::fs::OpenOptionsExt,
-    path::Path,
+    io::Write,
     process::{Command, Stdio},
 };
 
+#[cfg(target_os = "macos")]
+pub fn open(path: &Path, config: &Config) -> Result<()> {
+    let original = fs::read_to_string(path)?;
+    crate::settings_macos::run(path, original, config.clone())
+}
+#[cfg(not(target_os = "macos"))]
 pub fn open(path: &Path, config: &Config) -> Result<()> {
     let original = fs::read_to_string(path)?;
     let mut child = Command::new("python3")
@@ -45,30 +50,19 @@ pub fn save(path: &Path) -> Result<()> {
     }
     let update: Update =
         serde_json::from_str(&input).map_err(|_| anyhow::anyhow!("invalid settings payload"))?;
-    update.config.validate()?;
-    let text = merge(&update.original, &update.config)?;
-    if fs::read_to_string(path)? != update.original {
+    apply(path, &update.original, &update.config)
+}
+/// Validate, merge into the original TOML (preserving comments and unknown
+/// keys), atomically write, and sync the login-item setting. Shared by the
+/// stdin-driven GTK save path and the in-process macOS settings window.
+pub fn apply(path: &Path, original: &str, config: &Config) -> Result<()> {
+    config.validate()?;
+    let text = merge(original, config)?;
+    if fs::read_to_string(path)? != original {
         bail!("configuration changed outside this window; close and reopen Settings before saving");
     }
-    let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
-    let result = (|| -> Result<()> {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&temporary)?;
-        file.write_all(text.as_bytes())?;
-        file.sync_all()?;
-        fs::rename(&temporary, path)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.context("save configuration")?;
-    if let Err(error) =
-        calstack_platform::desktop::sync_autostart(update.config.startup.autostart, path)
-    {
+    calstack_platform::desktop::write_private(path, &text).context("save configuration")?;
+    if let Err(error) = calstack_platform::desktop::sync_autostart(config.startup.autostart, path) {
         eprintln!("Settings saved, but startup could not be updated: {error}");
     }
     Ok(())

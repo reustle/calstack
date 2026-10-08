@@ -11,6 +11,17 @@ chrono.workspace = true
 calstack-core.workspace = true
 calstack-render.workspace = true
 tracing.workspace = true
+toml.workspace = true
+serde.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
 smithay-client-toolkit = "0.20"
 wayland-client = "0.31"
-toml.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+winit = "0.30"
+softbuffer = "0.4"
+objc2 = "0.5"
+objc2-foundation = "0.2"
+objc2-app-kit = { version = "0.2", features = ["NSScreen", "NSResponder", "NSApplication", "NSView", "NSWindow"] }
+objc2-quartz-core = { version = "0.2", features = ["CATransaction"] }

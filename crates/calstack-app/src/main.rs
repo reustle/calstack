@@ -3,6 +3,8 @@ use calstack_core::config::{create_default, Config};
 use clap::Parser;
 use std::path::PathBuf;
 mod settings;
+#[cfg(target_os = "macos")]
+mod settings_macos;
 
 #[derive(Parser)]
 #[command(version, about = "Calstack: a tiny Wayland calendar strip")]
@@ -33,6 +35,12 @@ struct Args {
     /// Internal entry point for the desktop session's autostart launcher.
     #[arg(long, hide = true, conflicts_with_all = ["check", "demo"])]
     autostart: bool,
+    /// Print each display's name, size, and position, for use as `display.monitor`.
+    #[arg(long)]
+    list_displays: bool,
+    /// Internal: like `--list-displays`, machine-readable, for the settings window.
+    #[arg(long, hide = true)]
+    list_displays_json: bool,
 }
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -75,10 +83,33 @@ fn main() -> Result<()> {
         return Ok(());
     }
     // A stale desktop entry must not override a subsequently disabled setting,
-    // or try to start this Wayland app inside an X11 session.
-    if args.autostart
-        && (!config.startup.autostart || std::env::var_os("WAYLAND_DISPLAY").is_none())
-    {
+    // or try to start this app outside a graphical session.
+    #[cfg(target_os = "linux")]
+    let graphical_session = std::env::var_os("WAYLAND_DISPLAY").is_some();
+    #[cfg(not(target_os = "linux"))]
+    let graphical_session = true;
+    if args.autostart && (!config.startup.autostart || !graphical_session) {
+        return Ok(());
+    }
+    if args.list_displays_json {
+        println!(
+            "{}",
+            serde_json::to_string(&calstack_platform::list_monitors()?)?
+        );
+        return Ok(());
+    }
+    if args.list_displays {
+        for monitor in calstack_platform::list_monitors()? {
+            println!(
+                "{:?}  {}x{}  at ({},{}){}",
+                monitor.name,
+                monitor.width,
+                monitor.height,
+                monitor.x,
+                monitor.y,
+                if monitor.primary { "  primary" } else { "" }
+            );
+        }
         return Ok(());
     }
     if args.check {

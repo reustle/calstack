@@ -77,6 +77,24 @@ The generated PKGBUILD includes the source archive's SHA-256 checksum. No AUR
 submission or package repository is required. Remove with `pacman -R calstack`.
 Packages do not enable autostart for users or overwrite their settings.
 
+## macOS
+
+```sh
+make install-macos    # builds and copies Calstack.app to /Applications
+```
+
+(`make bundle-macos` builds `dist/Calstack.app` without installing it; `make
+uninstall-macos` removes the installed copy.) It's unsigned — no Apple
+Developer ID — so the first launch needs a right-click → Open, or System
+Settings → Privacy & Security → Open Anyway, past Gatekeeper. Launch it from
+Launchpad/Spotlight, or `open /Applications/Calstack.app --args --demo` for a
+preview. **Start at login** uses a `launchd` user agent instead of XDG
+autostart; the cache lives under `~/Library/Caches/calstack` and the config
+under `~/.config/calstack` (same as Linux, not `~/Library/Application
+Support`). To update, rebuild and run `make install-macos` again — it
+overwrites the existing `/Applications/Calstack.app`; quit the running app
+first so the new build isn't blocked by the old one's instance lock.
+
 ## Uninstall
 
 First turn **Start at login** off, or set `startup.autostart = false` and run

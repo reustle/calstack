@@ -3,7 +3,10 @@ DESTDIR ?=
 CARGO ?= cargo
 VERSION := 0.1.0
 
-.PHONY: all build check install uninstall dist clean
+APP_NAME := Calstack
+BUNDLE := dist/$(APP_NAME).app
+
+.PHONY: all build check install uninstall dist clean bundle-macos install-macos uninstall-macos
 all: build
 build:
 	$(CARGO) build --release --locked
@@ -26,3 +29,20 @@ dist:
 	cd dist && sed -i "s/@SHA256@/$$(sha256sum calstack-$(VERSION).tar.gz | cut -d' ' -f1)/" PKGBUILD
 clean:
 	$(CARGO) clean
+
+# macOS .app bundle. Not part of `dist`/`install` above, which target Linux
+# packaging; `cargo build --release` (no --locked) since this is a local
+# dev-machine workflow, not CI.
+bundle-macos:
+	$(CARGO) build --release
+	rm -rf "$(BUNDLE)"
+	mkdir -p "$(BUNDLE)/Contents/MacOS"
+	cp target/release/calstack "$(BUNDLE)/Contents/MacOS/calstack"
+	sed "s/@VERSION@/$(VERSION)/g" packaging/macos/Info.plist > "$(BUNDLE)/Contents/Info.plist"
+	@echo "Built $(BUNDLE)"
+install-macos: bundle-macos
+	rm -rf "/Applications/$(APP_NAME).app"
+	cp -R "$(BUNDLE)" "/Applications/$(APP_NAME).app"
+	@echo "Installed to /Applications/$(APP_NAME).app"
+uninstall-macos:
+	rm -rf "/Applications/$(APP_NAME).app"

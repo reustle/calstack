@@ -4,8 +4,8 @@
 
 ![Event popup with a Google Meet link](assets/screenshots/single-event.png)
 
-A small native calendar strip for Wayland. See today's events at the edge of
-your screen, hover for details, and click to join a meeting.
+A small native calendar strip for Wayland and macOS. See today's events at
+the edge of your screen, hover for details, and click to join a meeting.
 
 - Local ICS files and HTTP/HTTPS/webcal subscriptions
 - Recurring events, multiple calendars, and offline caching
@@ -13,7 +13,9 @@ your screen, hover for details, and click to join a meeting.
 - 13-pixel strip; no browser engine or continuous render loop
 
 Works with layer-shell compositors such as Hyprland and Sway. Omarchy gets
-matching colors and fonts; no Omarchy plugin is required.
+matching colors and fonts; no Omarchy plugin is required. On macOS, pins to
+the right edge of the screen as a floating always-on-top window — see the
+[macOS notes](docs/configuration.md#macos) for what's different there.
 
 ## Install
 
@@ -25,8 +27,15 @@ make install PREFIX="$HOME/.local"
 ~/.local/bin/calstack
 ```
 
-Add your ICS subscription in Settings. Use the bottom `⋮` menu for Settings,
-Refresh, or Quit. Changes apply automatically; **Start at login** is optional.
+On macOS: `make install-macos` builds a `Calstack.app` bundle and copies it to
+`/Applications` (`make bundle-macos` builds it into `dist/` without
+installing, `make uninstall-macos` removes it). It's unsigned, so the first
+launch needs a right-click → Open (or System Settings → Privacy & Security →
+Open Anyway) past Gatekeeper's "unidentified developer" warning.
+
+Add your ICS subscription in Settings. Use the bottom `⋮` menu for
+Settings/Refresh/Quit. Changes apply automatically; **Start at login** is
+optional.
 
 For a preview without a calendar: `calstack --demo`.
 

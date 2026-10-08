@@ -49,11 +49,30 @@ uses an available output and returns when the selected one reconnects. Monitor
 selection can change without restarting. With no outputs, it waits for one.
 The top layer stays above normal windows; fullscreen behavior follows the
 compositor's top-layer policy rather than forcibly drawing over fullscreen apps.
+Run `calstack --list-displays` to see each display's name (what `monitor` matches
+against), size, and position — on either OS.
 
 Omarchy themes supply colors and typography, including user overrides. Other
-desktops use fontconfig/GTK preferences and a built-in light/dark palette.
+Linux desktops use fontconfig/GTK preferences and a built-in light/dark palette.
 The tiny hour labels remain six logical pixels. Font rendering follows output
 scale, including compositor downscaling at fractional scales.
+
+## macOS
+
+The strip pins to the right edge of the configured display, below the menu bar,
+and always floats above other windows — there's no Wayland-style exclusive zone
+on macOS, so `reserve_space` is accepted but ignored; other windows can still
+extend behind the strip. Dark/light for `theme = "auto"` follows System
+Settings' appearance; there's no Omarchy-style live theme file, so custom
+accent colors aren't picked up. Typography uses a bundled font (Inter) rather
+than the system font, and doesn't track live font-size changes — Core Text
+integration is a possible future improvement, not currently implemented.
+`calstack --settings` opens a native window (built with egui, not GTK) with the
+same calendar/display/startup fields as Linux's settings, plus a monitor picker
+populated from the real display list instead of a free-text field. "Start at
+login" uses a `launchd` user agent instead of a freedesktop autostart entry;
+the calendar cache lives under `~/Library/Caches/calstack/calendars` instead of
+`$XDG_CACHE_HOME`.
 
 ## Supported ICS
 
