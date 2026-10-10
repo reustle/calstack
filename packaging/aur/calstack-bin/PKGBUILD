@@ -1,0 +1,34 @@
+# Maintainer: Shane Reustle <shane@reustle.org>
+# AUR: calstack-bin (prebuilt binary from the GitHub release).
+pkgname=calstack-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='A small native calendar strip for Wayland (prebuilt binary)'
+arch=('x86_64' 'aarch64')
+url='https://github.com/reustle/calstack'
+license=('MIT')
+depends=('glibc' 'gcc-libs' 'fontconfig' 'xdg-utils')
+optdepends=(
+  'gtk4: graphical settings window'
+  'python-gobject: graphical settings window'
+  'glib2: theme and font detection outside Omarchy'
+)
+provides=('calstack')
+conflicts=('calstack')
+source_x86_64=("$pkgname-$pkgver.tar.xz::$url/releases/download/v$pkgver/calstack-x86_64-unknown-linux-gnu.tar.xz")
+source_aarch64=("$pkgname-$pkgver.tar.xz::$url/releases/download/v$pkgver/calstack-aarch64-unknown-linux-gnu.tar.xz")
+# Fill after the GitHub release exists: updpkgsums  (or set the real sha256)
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+  local target
+  case "$CARCH" in
+    x86_64)  target=x86_64-unknown-linux-gnu ;;
+    aarch64) target=aarch64-unknown-linux-gnu ;;
+    *) error "unsupported architecture: $CARCH" ;;
+  esac
+  install -Dm755 "$srcdir/calstack-$target/calstack" "$pkgdir/usr/bin/calstack"
+  install -Dm644 "$srcdir/calstack-$target/calstack.desktop" "$pkgdir/usr/share/applications/calstack.desktop"
+  install -Dm644 "$srcdir/calstack-$target/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

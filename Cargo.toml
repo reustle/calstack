@@ -7,6 +7,12 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 rust-version = "1.89"
+authors = ["Shane Reustle <shane@reustle.org>"]
+description = "A small native calendar strip for Wayland and macOS"
+homepage = "https://github.com/reustle/calstack"
+repository = "https://github.com/reustle/calstack"
+keywords = ["calendar", "wayland", "hyprland", "ics", "layer-shell"]
+categories = ["command-line-utilities", "desktop-environment"]
 
 [workspace.dependencies]
 anyhow = "1"
@@ -22,3 +28,8 @@ calstack-platform = { path = "crates/calstack-platform" }
 [profile.release]
 lto = "thin"
 strip = true
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

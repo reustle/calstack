@@ -1,0 +1,46 @@
+# Maintainer: Shane Reustle <shane@reustle.org>
+# AUR: calstack (builds from the tagged source archive).
+# Builds from source; no prebuilt binary is downloaded.
+pkgname=calstack
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='A small native calendar strip for Wayland'
+arch=('x86_64' 'aarch64')
+url='https://github.com/reustle/calstack'
+license=('MIT')
+# fontconfig: fc-match (font resolution). xdg-utils: xdg-open (join meeting links).
+# The strip itself links no C desktop libraries.
+depends=('glibc' 'gcc-libs' 'fontconfig' 'xdg-utils')
+optdepends=(
+  'gtk4: graphical settings window'
+  'python-gobject: graphical settings window'
+  'glib2: theme and font detection outside Omarchy'
+)
+makedepends=('cargo')
+provides=('calstack')
+conflicts=('calstack-bin')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# Fill after the GitHub release/tag exists: updpkgsums  (or set the real sha256)
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  cargo fetch --locked
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  cargo build --release --frozen --locked
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  cargo test --workspace --locked
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/calstack "$pkgdir/usr/bin/calstack"
+  install -Dm644 packaging/calstack.desktop "$pkgdir/usr/share/applications/calstack.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='calstack-settings-test-') as temp:
     data['calendar'].setdefault('feeds', [])
     sys.argv = ['settings.py', str(binary), str(config)]
     sys.stdin = io.StringIO(json.dumps({'config': data, 'original': original}))
-    module = runpy.run_path(str(repo / 'crates/calstack-app/src/settings.py'), run_name='settings_test')
+    module = runpy.run_path(str(repo / 'crates/calstack/src/settings.py'), run_name='settings_test')
     Gtk = module['Gtk']
     from gi.repository import GLib
 

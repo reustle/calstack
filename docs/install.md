@@ -18,7 +18,31 @@ xdg-utils gtk4 python-gobject`; install `rust` and `base-devel` to build.
 On Debian/Ubuntu, the equivalents include `libwayland-client0 libxkbcommon0
 fontconfig xdg-utils python3-gi gir1.2-gtk-4.0`.
 
-## Install for yourself
+## Install
+
+Pick whichever fits your system.
+
+### Prebuilt binary (any distro)
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/reustle/calstack/releases/latest/download/calstack-installer.sh | sh
+```
+
+This installs `calstack` into `~/.cargo/bin` (the installer adds it to your
+PATH). Prebuilt archives are published for `x86_64` and `aarch64`, both glibc
+and static musl — the musl build runs on any distro regardless of glibc
+version. The installer ships only the executable; the desktop launcher entry is
+optional (autostart is handled by the app itself).
+
+### Arch / Omarchy (AUR)
+
+```sh
+yay -S calstack        # builds from source
+yay -S calstack-bin    # prebuilt binary + launcher entry
+```
+
+### From source
 
 ```sh
 make install PREFIX="$HOME/.local"
@@ -28,12 +52,13 @@ make install PREFIX="$HOME/.local"
 
 Keep `~/.local/bin` on your desktop session's PATH for the launcher entry.
 Autostart uses an absolute executable path and does not depend on PATH.
-The install includes a launcher entry and the license. To update, run the same
-install command, quit the old process, and launch the installed binary again.
+The source install includes a launcher entry and the license. To update, run the
+same install command, quit the old process, and launch the installed binary
+again.
 
 For a system installation, use `make install PREFIX=/usr/local` with appropriate
 permissions. `DESTDIR` is supported for package staging. `cargo install --path
-crates/calstack-app --locked` is also supported, but installs only the executable.
+crates/calstack --locked` is also supported, but installs only the executable.
 
 ## Start at login
 

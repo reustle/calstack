@@ -135,7 +135,7 @@ calstack/
 │   │       ├── appearance.rs
 │   │       └── autostart.rs
 │   │
-│   └── calstack-app/
+│   └── calstack/
 │       ├── main.rs
 │       ├── state.rs
 │       └── event_loop.rs

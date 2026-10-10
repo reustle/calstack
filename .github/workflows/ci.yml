@@ -6,16 +6,23 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # The strip links no C desktop libraries (pure-Rust Wayland + fontdue), so
+      # only the runtime tools the tests touch and the GTK settings stack are
+      # needed here. fontconfig provides fc-match at runtime.
       - name: Install desktop test dependencies
-        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev fontconfig desktop-file-utils python3-gi gir1.2-gtk-4.0 xvfb
+        run: sudo apt-get update && sudo apt-get install -y fontconfig desktop-file-utils python3-gi gir1.2-gtk-4.0 xvfb
       - name: Rust checks
         run: make check
       - name: Desktop entry
         run: desktop-file-validate packaging/calstack.desktop
+      - name: Release config is in sync with dist
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.33.0/cargo-dist-installer.sh | sh
+          "$HOME/.cargo/bin/dist" generate --check
       - name: Settings integration
         run: |
           cargo build --locked

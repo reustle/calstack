@@ -19,7 +19,21 @@ the right edge of the screen as a floating always-on-top window — see the
 
 ## Install
 
-With Rust and the [runtime dependencies](docs/install.md) installed:
+Any Linux distro (prebuilt binary):
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/reustle/calstack/releases/latest/download/calstack-installer.sh | sh
+```
+
+Arch / Omarchy (AUR):
+
+```sh
+yay -S calstack        # build from source
+yay -S calstack-bin    # prebuilt
+```
+
+From source, with Rust and the [runtime dependencies](docs/install.md):
 
 ```sh
 make install PREFIX="$HOME/.local"
