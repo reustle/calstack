@@ -15,7 +15,9 @@ toml.workspace = true
 serde.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-smithay-client-toolkit = "0.20"
+# Pointer-only layer-shell strip: no keyboard, so skip the default `xkbcommon`
+# feature (and its pkg-config/xkbcommon build dependency).
+smithay-client-toolkit = { version = "0.20", default-features = false, features = ["calloop"] }
 wayland-client = "0.31"
 
 [target.'cfg(target_os = "macos")'.dependencies]

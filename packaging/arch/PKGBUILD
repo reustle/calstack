@@ -6,7 +6,12 @@ pkgdesc='A small native calendar strip for Wayland'
 arch=('x86_64' 'aarch64')
 url='https://github.com/reustle/calstack'
 license=('MIT')
-depends=('glibc' 'gcc-libs' 'wayland' 'libxkbcommon' 'fontconfig' 'xdg-utils' 'gtk4' 'python-gobject')
+depends=('glibc' 'gcc-libs' 'fontconfig' 'xdg-utils')
+optdepends=(
+  'gtk4: graphical settings window'
+  'python-gobject: graphical settings window'
+  'glib2: theme and font detection outside Omarchy'
+)
 makedepends=('cargo')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('@SHA256@')
