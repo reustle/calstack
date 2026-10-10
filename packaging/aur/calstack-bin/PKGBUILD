@@ -17,9 +17,9 @@ provides=('calstack')
 conflicts=('calstack')
 source_x86_64=("$pkgname-$pkgver.tar.xz::$url/releases/download/v$pkgver/calstack-x86_64-unknown-linux-gnu.tar.xz")
 source_aarch64=("$pkgname-$pkgver.tar.xz::$url/releases/download/v$pkgver/calstack-aarch64-unknown-linux-gnu.tar.xz")
-# Fill after the GitHub release exists: updpkgsums  (or set the real sha256)
-sha256sums_x86_64=('SKIP')
-sha256sums_aarch64=('SKIP')
+# Checksums are for the v$pkgver release archives. Update with `updpkgsums`.
+sha256sums_x86_64=('3abc9ecad1c2bfdeea858e9ac5530798c896e833f400a183636c53b9ab4043f1')
+sha256sums_aarch64=('99f7eae66591c0b7af2f6d637d6874c6ad77acdd44ff787e59d451416b20056d')
 
 package() {
   local target

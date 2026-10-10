@@ -1,0 +1,23 @@
+pkgbase = calstack-bin
+	pkgdesc = A small native calendar strip for Wayland (prebuilt binary)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/reustle/calstack
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	depends = glibc
+	depends = gcc-libs
+	depends = fontconfig
+	depends = xdg-utils
+	optdepends = gtk4: graphical settings window
+	optdepends = python-gobject: graphical settings window
+	optdepends = glib2: theme and font detection outside Omarchy
+	provides = calstack
+	conflicts = calstack
+	source_x86_64 = calstack-bin-0.1.0.tar.xz::https://github.com/reustle/calstack/releases/download/v0.1.0/calstack-x86_64-unknown-linux-gnu.tar.xz
+	sha256sums_x86_64 = 3abc9ecad1c2bfdeea858e9ac5530798c896e833f400a183636c53b9ab4043f1
+	source_aarch64 = calstack-bin-0.1.0.tar.xz::https://github.com/reustle/calstack/releases/download/v0.1.0/calstack-aarch64-unknown-linux-gnu.tar.xz
+	sha256sums_aarch64 = 99f7eae66591c0b7af2f6d637d6874c6ad77acdd44ff787e59d451416b20056d
+
+pkgname = calstack-bin

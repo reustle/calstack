@@ -20,8 +20,7 @@ makedepends=('cargo')
 provides=('calstack')
 conflicts=('calstack-bin')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-# Fill after the GitHub release/tag exists: updpkgsums  (or set the real sha256)
-sha256sums=('SKIP')
+sha256sums=('b10851ccc2767a548b1961fa80ef076262a374e5b0035ebaa569ab6f61ad0490')
 
 prepare() {
   cd "$pkgname-$pkgver"
