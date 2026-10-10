@@ -59,7 +59,16 @@ struct Wayland {
     pointer: Option<wl_pointer::WlPointer>,
     popup: Option<LayerSurface>,
     font_settings: typography::FontSettings,
+    // Last strip height the compositor assigned, and a pending re-place. When
+    // the strip grows (a bar above/below went away), we re-create it after a
+    // short settle so a returning bar keeps its full width instead of being
+    // shrunk by our exclusive zone.
+    strip_height: u32,
+    settle_due: Option<Instant>,
 }
+
+/// How long to wait after the strip grows before re-creating it.
+const STRIP_SETTLE: Duration = Duration::from_millis(2500);
 struct App {
     core: Core,
     wl: Wayland,
@@ -118,6 +127,20 @@ impl Wayland {
     fn size_strip(layer: &LayerSurface, (width, reserve_space): (u32, bool)) {
         layer.set_size(width, 0);
         layer.set_exclusive_zone(if reserve_space { width as i32 } else { 0 });
+    }
+    /// Track the strip's compositor-assigned height. A growth means the layout
+    /// above/below changed — typically a top bar disappearing — so schedule a
+    /// one-shot re-place. A shrink means the bar is accounted for again.
+    fn note_strip_height(&mut self, height: u32) {
+        if height == 0 {
+            return;
+        }
+        if height > self.strip_height {
+            self.settle_due = Some(Instant::now() + STRIP_SETTLE);
+        } else if height < self.strip_height {
+            self.settle_due = None;
+        }
+        self.strip_height = height;
     }
     fn present(&mut self, surface: &wl_surface::WlSurface, canvas: Canvas) {
         let (buffer, pixels) = self
@@ -356,6 +379,8 @@ fn run_session(conn: Connection, config: Config, config_path: PathBuf, demo: boo
         pointer: None,
         popup: None,
         font_settings,
+        strip_height: 0,
+        settle_due: None,
     };
     let palette = app::palette_for(&wl, &config);
     let mut app = App {
@@ -371,15 +396,16 @@ fn run_session(conn: Connection, config: Config, config_path: PathBuf, demo: boo
     app.core.start(&mut app.wl);
     tracing::info!("Calstack started; bottom ⋮ menu has Refresh / Settings / Quit");
     while !app.core.exit {
+        let mut due = app.core.deadline();
+        if let Some(settle) = app.wl.settle_due {
+            due = due.min(settle);
+        }
         event_loop.dispatch(
-            Some(
-                app.core
-                    .deadline()
-                    .saturating_duration_since(Instant::now()),
-            ),
+            Some(due.saturating_duration_since(Instant::now())),
             &mut app,
         )?;
         app.core.run_timers(&mut app.wl);
+        app.run_settle_timer();
     }
     Ok(())
 }
@@ -388,6 +414,15 @@ impl App {
     fn ensure_output(&mut self, removed: Option<&wl_output::WlOutput>) {
         if self.wl.place_strip(&self.core.config, removed) {
             self.core.strip_recreated(&mut self.wl);
+        }
+    }
+    /// Re-create the strip once the layout has settled after a growth, so the
+    /// compositor places it below a returning bar instead of shrinking the bar.
+    fn run_settle_timer(&mut self) {
+        if self.wl.settle_due.is_some_and(|due| Instant::now() >= due) {
+            self.wl.settle_due = None;
+            self.wl.strip = None;
+            self.ensure_output(None);
         }
     }
 }
@@ -473,6 +508,7 @@ impl LayerShellHandler for App {
             if width > 0 {
                 self.wl.strip_width = width;
             }
+            self.wl.note_strip_height(height);
             self.core.strip_configured(&mut self.wl, width, height);
         } else if self.wl.popup.as_ref() == Some(layer) {
             self.core.popup_configured(&mut self.wl, width, height);
