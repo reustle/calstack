@@ -9,12 +9,13 @@ use calstack_core::{
     demo_events,
     feeds::{self, FeedUpdate},
     layout::{self, Block, MENU_HEIGHT},
-    meeting::recognized_url,
-    Event,
+    meeting::{action_label, recognized_url},
+    time_label, Event,
 };
 use calstack_render::{Canvas, Palette, TextRenderer};
 use chrono::{Local, NaiveDate, Timelike};
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant, SystemTime},
@@ -76,6 +77,9 @@ pub trait Backend {
     fn close_popup(&mut self);
 
     fn open_url(&self, target: &str);
+    /// Post a native desktop notification. `url` is the event's meeting
+    /// link; backends that support clickable notifications open it.
+    fn notify(&self, title: &str, body: &str, url: &str);
     /// Open (or focus) the settings UI. `&mut self` so a backend can track
     /// the spawned window/process and close it when `Core::exit` fires.
     fn open_settings(&mut self, config_path: &Path);
@@ -158,6 +162,8 @@ pub struct Core {
     dismiss_due: Option<Instant>,
     tick_due: Instant,
     popup: Option<PopupState>,
+    /// Events already announced today, keyed by calendar, title, and start.
+    notified: HashSet<(String, String, i32)>,
     pub text: TextRenderer,
     pub exit: bool,
 }
@@ -196,6 +202,7 @@ impl Core {
             dismiss_due: None,
             tick_due: Instant::now() + Duration::from_secs(30),
             popup: None,
+            notified: HashSet::new(),
             text,
             exit: false,
         }
@@ -243,6 +250,9 @@ impl Core {
         }
         if let Some(due) = self.dismiss_due {
             deadline = deadline.min(due);
+        }
+        if let Some(minutes) = self.next_notification_in(now_minutes()) {
+            deadline = deadline.min(Instant::now() + Duration::from_secs_f32(minutes * 60.0));
         }
         deadline
     }
@@ -487,6 +497,7 @@ impl Core {
         if !self.demo && today != self.feed_day {
             self.feed_day = today;
             self.events.clear();
+            self.notified.clear();
             self.clear_hover();
             self.close_popup(backend);
             self.layout();
@@ -496,6 +507,7 @@ impl Core {
             self.start_feed_refresh();
         }
         self.poll_feeds(backend);
+        self.send_notifications(backend, now_minutes());
         if self.theme_due <= now {
             self.theme_due = now + Duration::from_secs(2);
             let stamp = config_stamp(&self.config_path);
@@ -732,6 +744,51 @@ impl Core {
         }
     }
 
+    /// Events with a meeting link that haven't been announced yet, paired
+    /// with the minute (since midnight) their notification becomes due.
+    fn pending_notifications(&self) -> impl Iterator<Item = (&Event, f32)> {
+        let lead = self.config.notifications.minutes_before as f32;
+        self.events
+            .iter()
+            .filter(|_| self.config.notifications.enabled)
+            .filter(|event| event.meeting.as_deref().and_then(recognized_url).is_some())
+            .filter(|event| !self.notified.contains(&notification_key(event)))
+            .map(move |event| (event, event.start as f32 - lead))
+    }
+
+    /// Minutes until the next notification is due, if one is still ahead.
+    fn next_notification_in(&self, now: f32) -> Option<f32> {
+        self.pending_notifications()
+            .map(|(_, due)| due - now)
+            .filter(|wait| *wait > 0.0)
+            .min_by(f32::total_cmp)
+    }
+
+    /// Announce each meeting once, inside its lead window. Meetings that
+    /// already started (for example, after waking from sleep) are skipped.
+    fn send_notifications<B: Backend>(&mut self, backend: &mut B, now: f32) {
+        let due: Vec<Event> = self
+            .pending_notifications()
+            .filter(|(event, due)| *due <= now && now < event.start as f32)
+            .map(|(event, _)| event.clone())
+            .collect();
+        for event in due {
+            let url = event.meeting.as_deref().and_then(recognized_url);
+            let Some(url) = url else { continue };
+            let minutes = (event.start as f32 - now).ceil().max(1.0) as i32;
+            let provider = action_label(url.as_str())
+                .and_then(|label| label.strip_prefix("Open "))
+                .unwrap_or("Meeting");
+            let body = format!(
+                "Starts in {minutes} min at {} · {provider}",
+                time_label(event.start)
+            );
+            tracing::debug!(title = %event.title, "meeting notification");
+            backend.notify(&event.title, &body, url.as_str());
+            self.notified.insert(notification_key(&event));
+        }
+    }
+
     fn click_event<B: Backend>(&mut self, backend: &mut B, index: usize) {
         self.hover_due = None;
         if let Some(url) = self.events[index]
@@ -744,6 +801,10 @@ impl Core {
             self.show_popup(backend, PopupKind::Event(index, true));
         }
     }
+}
+
+fn notification_key(event: &Event) -> (String, String, i32) {
+    (event.calendar.clone(), event.title.clone(), event.start)
 }
 
 /// Spawn a desktop helper (URL opener, settings window) without blocking the
@@ -787,6 +848,7 @@ mod tests {
         popup_shown: RefCell<u32>,
         popup_closed: RefCell<u32>,
         opened_urls: RefCell<Vec<String>>,
+        notifications: RefCell<Vec<(String, String, String)>>,
         monitors: Vec<MonitorInfo>,
         hover_delay: Duration,
     }
@@ -806,6 +868,11 @@ mod tests {
         }
         fn open_url(&self, target: &str) {
             self.opened_urls.borrow_mut().push(target.to_string());
+        }
+        fn notify(&self, title: &str, body: &str, url: &str) {
+            self.notifications
+                .borrow_mut()
+                .push((title.into(), body.into(), url.into()));
         }
         fn open_settings(&mut self, _config_path: &Path) {}
         fn is_light(&self, _config: &Config) -> bool {
@@ -918,6 +985,51 @@ mod tests {
             ["https://meet.google.com/abc-defg-hij"]
         );
         assert_eq!(*backend.popup_shown.borrow(), 0);
+    }
+
+    #[test]
+    fn meetings_notify_once_inside_the_lead_window() {
+        const MEET: &str = "https://meet.google.com/abc-defg-hij";
+        let mut backend = Recording::default();
+        let mut core = core(vec![
+            event(600, 630, Some(MEET)),
+            event(600, 630, None),
+            event(700, 730, Some(MEET)),
+        ]);
+        // Default lead is 2 minutes: nothing at 09:57, one notification at 09:58.
+        core.send_notifications(&mut backend, 597.0);
+        assert!(backend.notifications.borrow().is_empty());
+        assert_eq!(core.next_notification_in(597.0), Some(1.0));
+        core.send_notifications(&mut backend, 598.5);
+        core.send_notifications(&mut backend, 599.0);
+        let sent = backend.notifications.borrow().clone();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].1, "Starts in 2 min at 10:00 · Google Meet");
+        assert_eq!(sent[0].2, MEET);
+        assert_eq!(core.next_notification_in(599.0), Some(99.0));
+        // A meeting that already started is never announced late.
+        core.send_notifications(&mut backend, 701.0);
+        assert_eq!(backend.notifications.borrow().len(), 1);
+    }
+
+    #[test]
+    fn notifications_follow_the_settings() {
+        let mut backend = Recording::default();
+        let mut core = core(vec![event(600, 630, Some("https://zoom.us/j/1"))]);
+        core.config.notifications.minutes_before = 10;
+        core.send_notifications(&mut backend, 590.0);
+        assert_eq!(backend.notifications.borrow().len(), 1);
+        let mut backend = Recording::default();
+        let mut core = core_with_disabled_notifications();
+        core.send_notifications(&mut backend, 599.0);
+        assert!(backend.notifications.borrow().is_empty());
+        assert_eq!(core.next_notification_in(590.0), None);
+    }
+
+    fn core_with_disabled_notifications() -> Core {
+        let mut core = core(vec![event(600, 630, Some("https://zoom.us/j/1"))]);
+        core.config.notifications.enabled = false;
+        core
     }
 
     #[test]

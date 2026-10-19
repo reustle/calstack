@@ -61,11 +61,14 @@ with tempfile.TemporaryDirectory(prefix='calstack-settings-test-') as temp:
     assert config.read_text() == original, 'Editing a draft must not write settings'
     app.width.set_value(15)
     app.autostart.set_active(True)
+    app.notify.set_active(False)
+    app.notify_minutes.set_value(5)
     app.save()
     saved = tomllib.loads(config.read_text())
     assert saved['display']['width'] == 15
     assert saved['calendar']['feeds'][0]['name'] == 'Test calendar'
     assert saved['startup']['autostart']
+    assert saved['notifications'] == {'enabled': False, 'minutes_before': 5}
     startup = root / 'xdg/autostart/calstack.desktop'
     assert startup.exists()
     before = config.read_text()
@@ -87,4 +90,4 @@ with tempfile.TemporaryDirectory(prefix='calstack-settings-test-') as temp:
     assert 'changed outside' in app.status.get_text()
     app.window.destroy()
     flush()
-    print('PASS: GTK add/remove feed, draft editing, display changes, startup toggle, validation, and concurrent edit protection')
+    print('PASS: GTK add/remove feed, draft editing, display changes, startup and notification toggles, validation, and concurrent edit protection')

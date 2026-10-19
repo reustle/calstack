@@ -9,7 +9,7 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gio, Gtk
+from gi.repository import Gio, GObject, Gtk
 
 BINARY, CONFIG = sys.argv[1:3]
 PAYLOAD = json.load(sys.stdin)
@@ -201,6 +201,11 @@ class Settings(Gtk.Application):
         self.reserve = Gtk.Switch(active=display["reserve_space"], valign=Gtk.Align.CENTER)
         self.now = Gtk.Switch(active=appearance["show_now_marker"], valign=Gtk.Align.CENTER)
         self.autostart = Gtk.Switch(active=self.config["startup"]["autostart"], valign=Gtk.Align.CENTER)
+        notifications = self.config.setdefault("notifications", {"enabled": True, "minutes_before": 2})
+        self.notify = Gtk.Switch(active=notifications["enabled"], valign=Gtk.Align.CENTER)
+        self.notify_minutes = spin(notifications["minutes_before"], 1, 60)
+        self.notify.bind_property("active", self.notify_minutes, "sensitive",
+                                  GObject.BindingFlags.SYNC_CREATE)
         self.opacities = {key: spin(appearance[key], 0, 1, .05, 2)
                           for key in ("past_opacity", "future_opacity", "active_opacity")}
         fields = [("Strip width (pixels)", self.width), ("Day starts (HH:MM)", self.start),
@@ -209,6 +214,8 @@ class Settings(Gtk.Application):
                   ("Show current time", self.now), ("Past event opacity", self.opacities["past_opacity"]),
                   ("Future event opacity", self.opacities["future_opacity"]),
                   ("Active event opacity", self.opacities["active_opacity"]),
+                  ("Notify before meetings with a link", self.notify),
+                  ("Minutes before", self.notify_minutes),
                   ("Start at login", self.autostart)]
         for title, control in fields:
             page.append(row(title, control))
@@ -225,6 +232,8 @@ class Settings(Gtk.Application):
                                          **{key: control.get_value() for key, control in self.opacities.items()})
         self.config["calendar"]["refresh_minutes"] = self.refresh_minutes.get_value_as_int()
         self.config["startup"]["autostart"] = self.autostart.get_active()
+        self.config["notifications"].update(enabled=self.notify.get_active(),
+                                            minutes_before=self.notify_minutes.get_value_as_int())
         try:
             result = subprocess.run([BINARY, "--config", CONFIG, "--save-settings"],
                                     input=json.dumps({"config": self.config, "original": self.original}),

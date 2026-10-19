@@ -223,6 +223,38 @@ impl Backend for Wayland {
     fn open_url(&self, target: &str) {
         app::spawn_detached(Command::new("xdg-open").arg(target));
     }
+    fn notify(&self, title: &str, body: &str, url: &str) {
+        let (title, body, url) = (title.to_owned(), body.to_owned(), url.to_owned());
+        // With an action, notify-send blocks until the notification closes,
+        // so wait on a worker thread and open the link if it was clicked.
+        std::thread::spawn(move || {
+            let base = |command: &mut Command| {
+                command
+                    .args(["--app-name=Calstack", "--icon=x-office-calendar"])
+                    .args(["--", title.as_str(), body.as_str()])
+                    .stdin(std::process::Stdio::null());
+            };
+            let mut clickable = Command::new("notify-send");
+            clickable.arg("--action=default=Join meeting");
+            base(&mut clickable);
+            match clickable.stderr(std::process::Stdio::null()).output() {
+                Ok(out) if out.status.success() => {
+                    if String::from_utf8_lossy(&out.stdout).trim() == "default" {
+                        app::spawn_detached(Command::new("xdg-open").arg(&url));
+                    }
+                }
+                // libnotify before 0.7.10 has no --action; post a plain one.
+                Ok(_) => {
+                    let mut plain = Command::new("notify-send");
+                    base(&mut plain);
+                    app::spawn_detached(&mut plain);
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "could not send notification; install libnotify")
+                }
+            }
+        });
+    }
     fn open_settings(&mut self, config_path: &Path) {
         match app::settings_command(config_path) {
             Ok(mut command) => app::spawn_detached(&mut command),

@@ -22,6 +22,10 @@ show_now_marker = true
 [startup]
 autostart = false
 
+[notifications]
+enabled = true
+minutes_before = 2
+
 [calendar]
 refresh_minutes = 10
 
@@ -42,6 +46,13 @@ enabled defaults to true. Relative paths resolve against the config directory.
 Use a provider's ICS subscription URL, not its calendar webpage. `webcal://`
 uses HTTPS. These subscriptions are read-only; CalDAV login, OAuth and event
 editing are outside the scope of this app.
+
+Calstack sends a desktop notification `minutes_before` (1–60, default 2)
+minutes before each event with a recognized meeting link. Each event is
+announced once; a meeting that already started (for example, after waking from
+sleep) is skipped. Set `enabled = false` to turn this off. On Linux this uses
+`notify-send` (libnotify), and clicking the notification joins the meeting; on
+macOS it posts to Notification Center, where clicking does not open the link.
 
 `primary` means the current available output, initially the first Wayland output.
 You can use a connector name such as `eDP-1`. If that output disappears, Calstack

@@ -267,6 +267,23 @@ impl Backend for MacSurfaces {
     fn open_url(&self, target: &str) {
         app::spawn_detached(Command::new("open").arg(target));
     }
+    fn notify(&self, title: &str, body: &str, _url: &str) {
+        // Notification Center via AppleScript works for both the raw binary
+        // and the unsigned .app bundle, which UNUserNotificationCenter doesn't
+        // support. Text goes through argv, so it's never parsed as script.
+        app::spawn_detached(
+            Command::new("osascript")
+                .args([
+                    "-e",
+                    "on run argv",
+                    "-e",
+                    "display notification (item 2 of argv) with title (item 1 of argv) sound name \"default\"",
+                    "-e",
+                    "end run",
+                ])
+                .args([title, body]),
+        );
+    }
     fn open_settings(&mut self, config_path: &Path) {
         if self
             .settings_child

@@ -70,7 +70,13 @@ pub fn apply(path: &Path, original: &str, config: &Config) -> Result<()> {
 fn merge(original: &str, config: &Config) -> Result<String> {
     let mut doc: toml_edit::DocumentMut = original.parse().context("read existing settings")?;
     let replacement: toml_edit::DocumentMut = toml::to_string(config)?.parse()?;
-    for section in ["display", "appearance", "startup", "calendar"] {
+    for section in [
+        "display",
+        "appearance",
+        "startup",
+        "notifications",
+        "calendar",
+    ] {
         if doc.get(section).is_none() {
             doc[section] = toml_edit::Item::Table(toml_edit::Table::new());
         }
@@ -137,6 +143,7 @@ mod tests {
         let read: Config = toml::from_str(&saved).unwrap();
         assert_eq!(read.display.width, 14);
         assert!(read.startup.autostart);
+        assert!(read.notifications.enabled);
         assert_eq!(read.calendar.feeds[0].url, config.calendar.feeds[0].url);
         config.calendar.feeds.clear();
         let cleared: Config = toml::from_str(&merge(text, &config).unwrap()).unwrap();

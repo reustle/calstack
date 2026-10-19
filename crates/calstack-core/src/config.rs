@@ -9,6 +9,23 @@ pub struct Config {
     pub appearance: Appearance,
     pub calendar: Calendar,
     pub startup: Startup,
+    pub notifications: Notifications,
+}
+
+/// Desktop notifications shortly before events that have a meeting link.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Notifications {
+    pub enabled: bool,
+    pub minutes_before: u32,
+}
+impl Default for Notifications {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            minutes_before: 2,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -166,6 +183,9 @@ impl Config {
             }
             feed.color_rgb()?;
         }
+        if !(1..=60).contains(&self.notifications.minutes_before) {
+            bail!("notification minutes_before must be 1–60");
+        }
         if !(8..=48).contains(&self.display.width) {
             bail!("width must be 8–48 logical pixels");
         }
@@ -223,6 +243,11 @@ mod tests {
         assert!(minute("-1:00").is_err());
         let mut config = Config::default();
         config.display.day_end = "05:00".into();
+        assert!(config.validate().is_err());
+        let mut config = Config::default();
+        assert!(config.notifications.enabled);
+        assert_eq!(config.notifications.minutes_before, 2);
+        config.notifications.minutes_before = 0;
         assert!(config.validate().is_err());
     }
 

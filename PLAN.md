@@ -73,7 +73,7 @@ Implement only what is required to make the strip useful every day:
 - Google OAuth
 - Microsoft Graph integration
 - CalDAV writes
-- notifications
+- notifications (since added: meeting reminders only)
 - task management
 - agenda/list views
 - week/month UI

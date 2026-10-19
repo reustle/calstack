@@ -9,6 +9,7 @@ the edge of your screen, hover for details, and click to join a meeting.
 
 - Local ICS files and HTTP/HTTPS/webcal subscriptions
 - Recurring events, multiple calendars, and offline caching
+- Desktop notifications shortly before meetings that have a link
 - Native settings, theme integration, and optional start at login
 - 13-pixel strip; no browser engine or continuous render loop
 

@@ -296,6 +296,17 @@ impl App {
             ));
         });
         ui.add_space(8.0);
+        ui.checkbox(
+            &mut cfg.notifications.enabled,
+            "Notify before meetings with a link",
+        );
+        ui.add_enabled_ui(cfg.notifications.enabled, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Minutes before");
+                ui.add(egui::DragValue::new(&mut cfg.notifications.minutes_before).range(1..=60));
+            });
+        });
+        ui.add_space(8.0);
         ui.checkbox(&mut cfg.startup.autostart, "Start at login");
     }
 }
