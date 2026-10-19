@@ -52,7 +52,11 @@ minutes before each event with a recognized meeting link. Each event is
 announced once; a meeting that already started (for example, after waking from
 sleep) is skipped. Set `enabled = false` to turn this off. On Linux this uses
 `notify-send` (libnotify), and clicking the notification joins the meeting; on
-macOS it posts to Notification Center, where clicking does not open the link.
+macOS, an app bundle signed with an Apple Development certificate (see
+[install](install.md)) posts as Calstack, can be allowed through Focus, and
+joins the meeting when clicked. The bare binary or an ad-hoc-signed bundle
+falls back to AppleScript notifications, which appear under Script Editor and
+don't open the link.
 
 `primary` means the current available output, initially the first Wayland output.
 You can use a connector name such as `eDP-1`. If that output disappears, Calstack

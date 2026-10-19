@@ -2,6 +2,7 @@
 //! edge of the configured display, always on top. Owns native window/surface
 //! handles only — all app state and decision logic lives in `crate::app::Core`.
 mod font;
+mod notify;
 
 use crate::app::{self, Backend, Core, MonitorInfo, Surface};
 use anyhow::{Context, Result};
@@ -267,22 +268,8 @@ impl Backend for MacSurfaces {
     fn open_url(&self, target: &str) {
         app::spawn_detached(Command::new("open").arg(target));
     }
-    fn notify(&self, title: &str, body: &str, _url: &str) {
-        // Notification Center via AppleScript works for both the raw binary
-        // and the unsigned .app bundle, which UNUserNotificationCenter doesn't
-        // support. Text goes through argv, so it's never parsed as script.
-        app::spawn_detached(
-            Command::new("osascript")
-                .args([
-                    "-e",
-                    "on run argv",
-                    "-e",
-                    "display notification (item 2 of argv) with title (item 1 of argv) sound name \"default\"",
-                    "-e",
-                    "end run",
-                ])
-                .args([title, body]),
-        );
+    fn notify(&self, title: &str, body: &str, url: &str) {
+        notify::post(title, body, url);
     }
     fn open_settings(&mut self, config_path: &Path) {
         if self
@@ -365,6 +352,9 @@ impl ApplicationHandler for MacApp {
         if self.state.is_some() {
             return;
         }
+        // After the app finishes launching: asking for notification
+        // permission any earlier is refused.
+        notify::init(self.config.notifications.enabled);
         let attrs = Window::default_attributes()
             .with_title("Calstack")
             .with_decorations(false)

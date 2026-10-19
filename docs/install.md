@@ -109,8 +109,12 @@ make install-macos    # builds and copies Calstack.app to /Applications
 ```
 
 (`make bundle-macos` builds `dist/Calstack.app` without installing it; `make
-uninstall-macos` removes the installed copy.) It's unsigned — no Apple
-Developer ID — so the first launch needs a right-click → Open, or System
+uninstall-macos` removes the installed copy.) The bundle is signed with the
+first Apple Development certificate in your keychain (set
+`CODESIGN_IDENTITY=...` to choose another), which macOS requires before it
+lets Calstack post its own notifications; without one it gets an ad-hoc
+signature and meeting reminders use AppleScript instead. It isn't notarized —
+no Developer ID — so the first launch needs a right-click → Open, or System
 Settings → Privacy & Security → Open Anyway, past Gatekeeper. Launch it from
 Launchpad/Spotlight, or `open /Applications/Calstack.app --args --demo` for a
 preview. **Start at login** uses a `launchd` user agent instead of XDG

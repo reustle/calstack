@@ -361,6 +361,7 @@ name = "calstack-platform"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block2",
  "calstack-core",
  "calstack-render",
  "chrono",
@@ -368,6 +369,7 @@ dependencies = [
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
  "objc2-quartz-core 0.2.2",
+ "objc2-user-notifications",
  "serde",
  "smithay-client-toolkit 0.20.0",
  "softbuffer",

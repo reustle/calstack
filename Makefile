@@ -5,6 +5,7 @@ VERSION := 0.1.0
 
 APP_NAME := Calstack
 BUNDLE := dist/$(APP_NAME).app
+CODESIGN_IDENTITY ?= $(or $(shell security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Apple Development: .*\)"/\1/p' | head -1),-)
 
 .PHONY: all build check install uninstall dist clean bundle-macos install-macos uninstall-macos
 all: build
@@ -39,6 +40,11 @@ bundle-macos:
 	mkdir -p "$(BUNDLE)/Contents/MacOS"
 	cp target/release/calstack "$(BUNDLE)/Contents/MacOS/calstack"
 	sed "s/@VERSION@/$(VERSION)/g" packaging/macos/Info.plist > "$(BUNDLE)/Contents/Info.plist"
+	# Notification Center only accepts a bundle signed with a real identity
+	# and the hardened runtime. Uses the first Apple Development certificate
+	# in the keychain (override with CODESIGN_IDENTITY=...); without one, an
+	# ad-hoc signature still runs, but notifications fall back to AppleScript.
+	codesign --force --options runtime --sign "$(CODESIGN_IDENTITY)" "$(BUNDLE)"
 	@echo "Built $(BUNDLE)"
 install-macos: bundle-macos
 	rm -rf "/Applications/$(APP_NAME).app"

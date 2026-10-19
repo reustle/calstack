@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Calstack</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.calstack.app</string>
+	<string>io.github.reustle.calstack</string>
 	<key>CFBundleVersion</key>
 	<string>@VERSION@</string>
 	<key>CFBundleShortVersionString</key>
