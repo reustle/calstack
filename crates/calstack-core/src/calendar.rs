@@ -20,6 +20,66 @@ fn value<'a>(event: &'a IcalEvent, name: &str) -> Option<&'a str> {
 fn cancelled(event: &IcalEvent) -> bool {
     value(event, "STATUS") == Some("CANCELLED")
 }
+fn address(raw: &str) -> String {
+    let raw = raw.trim();
+    let raw = if raw.len() >= 7 && raw[..7].eq_ignore_ascii_case("mailto:") {
+        &raw[7..]
+    } else {
+        raw
+    };
+    raw.to_ascii_lowercase()
+}
+/// The feed owner is invited to everything on their calendar, so take the one
+/// address listed on at least 90% of events that have attendees. Small or
+/// ambiguous feeds yield nobody rather than a guess.
+fn owner(events: &[IcalEvent]) -> HashSet<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    let mut invited = 0;
+    for event in events {
+        let addresses: HashSet<String> = event
+            .properties
+            .iter()
+            .filter(|p| p.name == "ATTENDEE")
+            .filter_map(|p| p.value.as_deref())
+            .map(address)
+            .collect();
+        if addresses.is_empty() {
+            continue;
+        }
+        invited += 1;
+        for a in addresses {
+            *counts.entry(a).or_default() += 1;
+        }
+    }
+    let likely: HashSet<String> = counts
+        .into_iter()
+        .filter(|(_, n)| n * 10 >= invited * 9)
+        .map(|(a, _)| a)
+        .collect();
+    if invited >= 5 && likely.len() == 1 {
+        likely
+    } else {
+        HashSet::new()
+    }
+}
+/// Whether one of `me` declined. Overrides that list no attendees inherit the master's.
+fn declined(event: &IcalEvent, master: Option<&IcalEvent>, me: &HashSet<String>) -> bool {
+    let attendees = |e: &IcalEvent| {
+        e.properties
+            .iter()
+            .filter(|p| p.name == "ATTENDEE")
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    let mut list = attendees(event);
+    if list.is_empty() {
+        list = master.map(attendees).unwrap_or_default();
+    }
+    list.iter().any(|p| {
+        parameter(p, "PARTSTAT").is_some_and(|s| s.eq_ignore_ascii_case("DECLINED"))
+            && p.value.as_deref().is_some_and(|v| me.contains(&address(v)))
+    })
+}
 fn unescape(raw: &str) -> String {
     let mut out = String::new();
     let mut chars = raw.chars();
@@ -255,6 +315,7 @@ pub fn events_for_day(source: &str, feed: &Feed, day: NaiveDate, local: Tz) -> R
         let calendar = calendar.context("invalid iCalendar document")?;
         calendars += 1;
         let zones = zones::load(&calendar.timezones, day)?;
+        let me = owner(&calendar.events);
         let mut revisions: BTreeMap<(String, Option<i64>), IcalEvent> = BTreeMap::new();
         for event in calendar.events {
             let uid = value(&event, "UID")
@@ -293,7 +354,7 @@ pub fn events_for_day(source: &str, feed: &Feed, day: NaiveDate, local: Tz) -> R
                 continue;
             }
             let master = rid.and_then(|_| revisions.get(&(uid.clone(), None)));
-            if master.is_some_and(cancelled) {
+            if master.is_some_and(cancelled) || declined(raw, master, &me) {
                 continue;
             }
             if prop(raw, "DTSTART").is_some_and(date_only) {
@@ -315,7 +376,7 @@ pub fn events_for_day(source: &str, feed: &Feed, day: NaiveDate, local: Tz) -> R
                     prop(other, "RECURRENCE-ID").and_then(|p| parameter(p, "RANGE"))
                         == Some("THISANDFUTURE")
                 }) {
-                    if cancelled(other) {
+                    if cancelled(other) || declined(other, Some(raw), &me) {
                         ranges.push((id, None));
                         continue;
                     }
@@ -519,6 +580,49 @@ mod tests {
     fn cancelled_override_suppresses_occurrence() {
         let source = "BEGIN:VEVENT\nUID:a\nDTSTART:20260920T090000Z\nDURATION:PT1H\nRRULE:FREQ=DAILY\nEND:VEVENT\nBEGIN:VEVENT\nUID:a\nRECURRENCE-ID:20260926T090000Z\nSTATUS:CANCELLED\nEND:VEVENT";
         assert!(parse(source, "2026-09-26", Tz::UTC).is_empty());
+    }
+    fn named_titles(source: &str, name: &str) -> Vec<String> {
+        events_for_day(
+            &format!("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-WR-CALNAME:{name}\r\n{source}\r\nEND:VCALENDAR\r\n"),
+            &feed(),
+            "2026-09-26".parse().unwrap(),
+            Tz::UTC,
+        )
+        .unwrap()
+        .into_iter()
+        .map(|e| e.title)
+        .collect()
+    }
+    /// Earlier meetings that make me@example.com recognizable as the feed owner.
+    fn titles(source: &str) -> Vec<String> {
+        let past: String = (20..25)
+            .map(|d| format!("BEGIN:VEVENT\nUID:p{d}\nDTSTART:202609{d}T090000Z\nDURATION:PT1H\nATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com\nATTENDEE;PARTSTAT=ACCEPTED:mailto:them{}@example.com\nEND:VEVENT\n", d % 2))
+            .collect();
+        named_titles(&format!("{past}{source}"), "Work")
+    }
+    #[test]
+    fn hides_only_events_you_declined() {
+        let source = "BEGIN:VEVENT\nUID:a\nSUMMARY:Mine\nDTSTART:20260926T090000Z\nDURATION:PT1H\nATTENDEE;PARTSTAT=DECLINED;CN=Me:MAILTO:Me@Example.com\nEND:VEVENT\nBEGIN:VEVENT\nUID:b\nSUMMARY:Theirs\nDTSTART:20260926T100000Z\nDURATION:PT1H\nATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com\nATTENDEE;PARTSTAT=DECLINED:mailto:them0@example.com\nEND:VEVENT";
+        assert_eq!(titles(source), ["Theirs"]);
+    }
+    #[test]
+    fn declines_apply_to_series_and_single_occurrences() {
+        let declined_series = "BEGIN:VEVENT\nUID:a\nSUMMARY:Series\nDTSTART:20260920T090000Z\nDURATION:PT1H\nRRULE:FREQ=DAILY\nATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com\nEND:VEVENT\nBEGIN:VEVENT\nUID:a\nRECURRENCE-ID:20260926T090000Z\nSUMMARY:Moved\nDTSTART:20260926T120000Z\nDURATION:PT1H\nEND:VEVENT";
+        assert!(titles(declined_series).is_empty());
+        let rejoined = declined_series.replace(
+            "SUMMARY:Moved\n",
+            "SUMMARY:Moved\nATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com\n",
+        );
+        assert_eq!(titles(&rejoined), ["Moved"]);
+        let one_off = "BEGIN:VEVENT\nUID:a\nSUMMARY:Series\nDTSTART:20260920T090000Z\nDURATION:PT1H\nRRULE:FREQ=DAILY\nATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com\nEND:VEVENT\nBEGIN:VEVENT\nUID:a\nRECURRENCE-ID:20260926T090000Z\nDTSTART:20260926T090000Z\nDURATION:PT1H\nATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com\nEND:VEVENT";
+        assert!(titles(one_off).is_empty());
+        assert_eq!(titles(&one_off.replace("20260926", "20260925")), ["Series"]);
+    }
+    #[test]
+    fn owner_is_never_guessed_from_too_little_or_the_calendar_name() {
+        let today = "BEGIN:VEVENT\nUID:t\nSUMMARY:Declined\nDTSTART:20260926T090000Z\nDURATION:PT1H\nATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com\nATTENDEE;PARTSTAT=ACCEPTED:mailto:them0@example.com\nEND:VEVENT";
+        assert_eq!(named_titles(today, "Work"), ["Declined"]);
+        assert_eq!(named_titles(today, "me@example.com"), ["Declined"]);
     }
     #[test]
     fn rejects_html_and_unknown_timezone() {

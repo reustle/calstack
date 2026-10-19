@@ -47,6 +47,9 @@ Use a provider's ICS subscription URL, not its calendar webpage. `webcal://`
 uses HTTPS. These subscriptions are read-only; CalDAV login, OAuth and event
 editing are outside the scope of this app.
 
+Events you declined are hidden. CalStack recognizes you as the one attendee
+invited to nearly every event in the feed.
+
 Calstack sends a desktop notification `minutes_before` (1–60, default 2)
 minutes before each event with a recognized meeting link. Each event is
 announced once; a meeting that already started (for example, after waking from
