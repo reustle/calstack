@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Calstack//Timezone fixture//EN
+PRODID:-//CalStack//Timezone fixture//EN
 BEGIN:VTIMEZONE
 TZID:Custom/Eastern
 BEGIN:DAYLIGHT

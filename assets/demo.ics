@@ -1,8 +1,8 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Calstack//Demo Calendar//EN
+PRODID:-//CalStack//Demo Calendar//EN
 CALSCALE:GREGORIAN
-X-WR-CALNAME:Calstack Demo
+X-WR-CALNAME:CalStack Demo
 BEGIN:VEVENT
 UID:early@demo.calstack.invalid
 DTSTAMP:20260925T000000Z

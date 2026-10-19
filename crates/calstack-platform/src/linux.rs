@@ -230,7 +230,7 @@ impl Backend for Wayland {
         std::thread::spawn(move || {
             let base = |command: &mut Command| {
                 command
-                    .args(["--app-name=Calstack", "--icon=x-office-calendar"])
+                    .args(["--app-name=CalStack", "--icon=x-office-calendar"])
                     .args(["--", title.as_str(), body.as_str()])
                     .stdin(std::process::Stdio::null());
             };
@@ -318,7 +318,7 @@ fn monitors(outputs: &OutputState) -> Vec<MonitorInfo> {
 /// surfaces, just connects long enough to read output metadata.
 pub fn list_monitors() -> Result<Vec<MonitorInfo>> {
     let conn =
-        Connection::connect_to_env().context("run Calstack inside a Wayland desktop session")?;
+        Connection::connect_to_env().context("run CalStack inside a Wayland desktop session")?;
     let (globals, mut queue) = registry_queue_init(&conn)?;
     let qh = queue.handle();
     struct Probe {
@@ -359,7 +359,7 @@ pub fn list_monitors() -> Result<Vec<MonitorInfo>> {
 pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
     if std::env::var_os("WAYLAND_DISPLAY").is_none() && std::env::var_os("WAYLAND_SOCKET").is_none()
     {
-        anyhow::bail!("run Calstack inside a Wayland desktop session");
+        anyhow::bail!("run CalStack inside a Wayland desktop session");
     }
     let mut waiting = false;
     loop {
@@ -426,7 +426,7 @@ fn run_session(conn: Connection, config: Config, config_path: PathBuf, demo: boo
         .insert(event_loop.handle())
         .map_err(|e| anyhow::anyhow!("Wayland event source: {e}"))?;
     app.core.start(&mut app.wl);
-    tracing::info!("Calstack started; bottom ⋮ menu has Refresh / Settings / Quit");
+    tracing::info!("CalStack started; bottom ⋮ menu has Refresh / Settings / Quit");
     while !app.core.exit {
         let mut due = app.core.deadline();
         if let Some(settle) = app.wl.settle_due {

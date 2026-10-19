@@ -49,7 +49,7 @@ pub fn demo_events() -> Vec<Event> {
     .into_iter()
     .map(|(title, start, end, meeting)| Event {
         title: title.into(),
-        calendar: "Calstack Demo".into(),
+        calendar: "CalStack Demo".into(),
         start,
         end,
         meeting: meeting.map(str::to_owned),

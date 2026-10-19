@@ -1,8 +1,8 @@
-# Calstack
+# CalStack
 
 A minimalist thin vertical calendar for Mac and Linux
 
-![Calstack on the Omarchy desktop](assets/screenshots/fullscreen.png)
+![CalStack on the Omarchy desktop](assets/screenshots/fullscreen.png)
 
 ![Event popup with a Google Meet link](assets/screenshots/single-event.png)
 
@@ -44,7 +44,7 @@ make install PREFIX="$HOME/.local"
 ~/.local/bin/calstack
 ```
 
-On macOS: `make install-macos` builds a `Calstack.app` bundle and copies it to
+On macOS: `make install-macos` builds a `CalStack.app` bundle and copies it to
 `/Applications` (`make bundle-macos` builds it into `dist/` without
 installing, `make uninstall-macos` removes it). It's unsigned, so the first
 launch needs a right-click → Open (or System Settings → Privacy & Security →

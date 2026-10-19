@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Calstack
+Name=CalStack
 Comment=Calendar strip for Wayland
 Exec=calstack
 TryExec=calstack

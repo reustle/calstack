@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Calstack//Range fixture//EN
+PRODID:-//CalStack//Range fixture//EN
 BEGIN:VEVENT
 UID:range
 DTSTART:20260924T090000Z

@@ -60,7 +60,7 @@ class Settings(Gtk.Application):
         self.connect("activate", self.activate_window)
 
     def activate_window(self, *_):
-        self.window = Gtk.ApplicationWindow(application=self, title="Calstack Settings")
+        self.window = Gtk.ApplicationWindow(application=self, title="CalStack Settings")
         self.window.set_default_size(620, 650)
         self.window.set_size_request(480, 450)
         header = Gtk.HeaderBar()
@@ -244,7 +244,7 @@ class Settings(Gtk.Application):
             self.original = Path(CONFIG).read_text()
             self.status.set_text(result.stderr.strip() or "Saved. The running strip will update automatically.")
         except (OSError, subprocess.TimeoutExpired):
-            self.status.set_text("Could not save settings. Check that Calstack is still installed.")
+            self.status.set_text("Could not save settings. Check that CalStack is still installed.")
 
     def refresh(self, *_):
         try:

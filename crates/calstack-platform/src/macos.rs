@@ -356,7 +356,7 @@ impl ApplicationHandler for MacApp {
         // permission any earlier is refused.
         notify::init(self.config.notifications.enabled);
         let attrs = Window::default_attributes()
-            .with_title("Calstack")
+            .with_title("CalStack")
             .with_decorations(false)
             .with_resizable(false)
             .with_visible(false)
@@ -518,6 +518,6 @@ pub fn run(config: Config, config_path: PathBuf, demo: bool) -> Result<()> {
         demo,
         state: None,
     };
-    tracing::info!("Calstack started; bottom \u{22ee} menu has Refresh / Settings / Quit");
+    tracing::info!("CalStack started; bottom \u{22ee} menu has Refresh / Settings / Quit");
     event_loop.run_app(&mut app).context("run event loop")
 }

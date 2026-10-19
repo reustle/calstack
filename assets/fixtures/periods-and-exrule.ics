@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Calstack//Recurrence fixture//EN
+PRODID:-//CalStack//Recurrence fixture//EN
 BEGIN:VEVENT
 UID:periods
 DTSTART:20260924T090000Z

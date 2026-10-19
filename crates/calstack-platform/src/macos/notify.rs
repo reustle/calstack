@@ -1,4 +1,4 @@
-//! Notification Center alerts posted as Calstack itself, so they get their own
+//! Notification Center alerts posted as CalStack itself, so they get their own
 //! entry in System Settings › Notifications and can be allowed through Focus,
 //! and clicking one joins the meeting. UserNotifications only works inside a
 //! signed app bundle: the bare binary, or a bundle macOS refuses, falls back
@@ -30,7 +30,7 @@ const NOT_REQUESTED: u8 = 1;
 /// Asked; the user may still be looking at the permission prompt.
 const PENDING: u8 = 2;
 const GRANTED: u8 = 3;
-/// The user turned Calstack's notifications off; respect that.
+/// The user turned CalStack's notifications off; respect that.
 const DENIED: u8 = 4;
 
 static STATE: AtomicU8 = AtomicU8::new(SCRIPT);
@@ -42,7 +42,7 @@ declare_class!(
     unsafe impl ClassType for Delegate {
         type Super = NSObject;
         type Mutability = mutability::InteriorMutable;
-        const NAME: &'static str = "CalstackNotificationDelegate";
+        const NAME: &'static str = "CalStackNotificationDelegate";
     }
 
     impl DeclaredClass for Delegate {}
@@ -50,7 +50,7 @@ declare_class!(
     unsafe impl NSObjectProtocol for Delegate {}
 
     unsafe impl UNUserNotificationCenterDelegate for Delegate {
-        /// Show banners even while Calstack counts as the active app.
+        /// Show banners even while CalStack counts as the active app.
         #[method(userNotificationCenter:willPresentNotification:withCompletionHandler:)]
         fn will_present(
             &self,
@@ -116,7 +116,7 @@ fn request_authorization(center: &UNUserNotificationCenter) {
         let state = match unsafe { error.as_ref() } {
             _ if granted.as_bool() => GRANTED,
             None => {
-                tracing::info!("notifications are off for Calstack in System Settings");
+                tracing::info!("notifications are off for CalStack in System Settings");
                 DENIED
             }
             Some(error) => {

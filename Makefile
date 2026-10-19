@@ -3,7 +3,7 @@ DESTDIR ?=
 CARGO ?= cargo
 VERSION := 0.1.0
 
-APP_NAME := Calstack
+APP_NAME := CalStack
 BUNDLE := dist/$(APP_NAME).app
 CODESIGN_IDENTITY ?= $(or $(shell security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Apple Development: .*\)"/\1/p' | head -1),-)
 

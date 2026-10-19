@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Calstack</string>
+	<string>CalStack</string>
 	<key>CFBundleDisplayName</key>
-	<string>Calstack</string>
+	<string>CalStack</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.reustle.calstack</string>
 	<key>CFBundleVersion</key>

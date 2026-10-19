@@ -1,6 +1,6 @@
 # Installation
 
-Calstack is a standalone Wayland application, not an Omarchy plugin. The strip
+CalStack is a standalone Wayland application, not an Omarchy plugin. The strip
 requires a compositor supporting `zwlr_layer_shell_v1` (including Hyprland and
 Sway). X11 and stock GNOME's compositor do not provide this protocol.
 
@@ -75,7 +75,7 @@ Changes apply when the running app reloads the config. Without a running app:
 calstack --sync-autostart
 ```
 
-Calstack creates `~/.config/autostart/calstack.desktop` (respecting
+CalStack creates `~/.config/autostart/calstack.desktop` (respecting
 `XDG_CONFIG_HOME`) using the standard [XDG autostart mechanism](https://specifications.freedesktop.org/autostart/latest/).
 Turning the setting off removes its managed entry. The entry uses the installed
 executable and selected config, never `--demo`. A stale entry also checks the
@@ -84,7 +84,7 @@ exit without adding a second strip.
 
 Omarchy's UWSM session already starts XDG autostart applications. On a bare
 compositor session, your session manager must run XDG autostart entries (for
-example via UWSM or dex); Calstack does not modify compositor startup files.
+example via UWSM or dex); CalStack does not modify compositor startup files.
 The setting defaults to false. Quit closes the app for this session without
 changing whether it starts at the next login.
 
@@ -105,23 +105,23 @@ Packages do not enable autostart for users or overwrite their settings.
 ## macOS
 
 ```sh
-make install-macos    # builds and copies Calstack.app to /Applications
+make install-macos    # builds and copies CalStack.app to /Applications
 ```
 
-(`make bundle-macos` builds `dist/Calstack.app` without installing it; `make
+(`make bundle-macos` builds `dist/CalStack.app` without installing it; `make
 uninstall-macos` removes the installed copy.) The bundle is signed with the
 first Apple Development certificate in your keychain (set
 `CODESIGN_IDENTITY=...` to choose another), which macOS requires before it
-lets Calstack post its own notifications; without one it gets an ad-hoc
+lets CalStack post its own notifications; without one it gets an ad-hoc
 signature and meeting reminders use AppleScript instead. It isn't notarized —
 no Developer ID — so the first launch needs a right-click → Open, or System
 Settings → Privacy & Security → Open Anyway, past Gatekeeper. Launch it from
-Launchpad/Spotlight, or `open /Applications/Calstack.app --args --demo` for a
+Launchpad/Spotlight, or `open /Applications/CalStack.app --args --demo` for a
 preview. **Start at login** uses a `launchd` user agent instead of XDG
 autostart; the cache lives under `~/Library/Caches/calstack` and the config
 under `~/.config/calstack` (same as Linux, not `~/Library/Application
 Support`). To update, rebuild and run `make install-macos` again — it
-overwrites the existing `/Applications/Calstack.app`; quit the running app
+overwrites the existing `/Applications/CalStack.app`; quit the running app
 first so the new build isn't blocked by the old one's instance lock.
 
 ## Uninstall

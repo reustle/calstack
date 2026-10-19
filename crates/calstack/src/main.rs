@@ -7,7 +7,7 @@ mod settings;
 mod settings_macos;
 
 #[derive(Parser)]
-#[command(version, about = "Calstack: a tiny Wayland calendar strip")]
+#[command(version, about = "CalStack: a tiny Wayland calendar strip")]
 struct Args {
     /// Configuration file; defaults to $XDG_CONFIG_HOME/calstack/config.toml.
     #[arg(long)]
@@ -147,7 +147,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
     let Some(_instance) = calstack_platform::desktop::lock_instance()? else {
-        tracing::info!("Calstack is already running in this session");
+        tracing::info!("CalStack is already running in this session");
         return Ok(());
     };
     if !args.demo {

@@ -1,4 +1,4 @@
-# Calstack — Omarchy Build Plan
+# CalStack — Omarchy Build Plan
 
 Current implementation includes milestones 0–8: the native strip, local and
 remote ICS subscriptions, caching, meeting links, desktop integration, XDG
@@ -927,7 +927,7 @@ calstack --log debug
 Use the standard XDG autostart mechanism, controlled by `startup.autostart`
 in configuration or the Settings window. This works with session managers such
 as UWSM without editing Hyprland configuration or installing an Omarchy plugin.
-Calstack writes a managed desktop entry using the absolute installed executable
+CalStack writes a managed desktop entry using the absolute installed executable
 and config paths. Autostart is opt-in; duplicate strip launches exit harmlessly.
 
 ---
@@ -1332,7 +1332,7 @@ The first usable release is complete when:
 
 ## 43. Working name
 
-Use **Calstack** for the repository/app unless renamed later.
+Use **CalStack** for the repository/app unless renamed later.
 
 Suggested binary:
 

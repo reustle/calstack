@@ -52,7 +52,7 @@ pub(super) fn entry(executable: &Path, config: &Path) -> Result<String> {
     if raw.contains('=') {
         bail!("desktop executable paths cannot contain '='");
     }
-    Ok(format!("[Desktop Entry]\nType=Application\nName=Calstack\nComment=Calendar strip for Wayland\nExec={} --autostart --config {}\nTryExec={}\nIcon=x-office-calendar\nTerminal=false\n{MANAGED}\n", exec_argument(executable)?, exec_argument(config)?, raw.replace('\\', "\\\\")))
+    Ok(format!("[Desktop Entry]\nType=Application\nName=CalStack\nComment=Calendar strip for Wayland\nExec={} --autostart --config {}\nTryExec={}\nIcon=x-office-calendar\nTerminal=false\n{MANAGED}\n", exec_argument(executable)?, exec_argument(config)?, raw.replace('\\', "\\\\")))
 }
 
 pub(super) fn lock_path() -> Result<PathBuf> {

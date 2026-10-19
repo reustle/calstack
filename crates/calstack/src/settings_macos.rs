@@ -372,11 +372,11 @@ pub fn run(path: &Path, original: String, config: Config) -> Result<()> {
             .with_position([160.0, 160.0])
             .with_inner_size([620.0, 650.0])
             .with_min_inner_size([480.0, 450.0])
-            .with_title("Calstack Settings"),
+            .with_title("CalStack Settings"),
         ..Default::default()
     };
     eframe::run_native(
-        "Calstack Settings",
+        "CalStack Settings",
         options,
         Box::new(|_cc| Ok(Box::new(app))),
     )

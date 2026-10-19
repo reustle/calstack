@@ -50,19 +50,19 @@ editing are outside the scope of this app.
 Events you declined are hidden. CalStack recognizes you as the one attendee
 invited to nearly every event in the feed.
 
-Calstack sends a desktop notification `minutes_before` (1–60, default 2)
+CalStack sends a desktop notification `minutes_before` (1–60, default 2)
 minutes before each event with a recognized meeting link. Each event is
 announced once; a meeting that already started (for example, after waking from
 sleep) is skipped. Set `enabled = false` to turn this off. On Linux this uses
 `notify-send` (libnotify), and clicking the notification joins the meeting; on
 macOS, an app bundle signed with an Apple Development certificate (see
-[install](install.md)) posts as Calstack, can be allowed through Focus, and
+[install](install.md)) posts as CalStack, can be allowed through Focus, and
 joins the meeting when clicked. The bare binary or an ad-hoc-signed bundle
 falls back to AppleScript notifications, which appear under Script Editor and
 don't open the link.
 
 `primary` means the current available output, initially the first Wayland output.
-You can use a connector name such as `eDP-1`. If that output disappears, Calstack
+You can use a connector name such as `eDP-1`. If that output disappears, CalStack
 uses an available output and returns when the selected one reconnects. Monitor
 selection can change without restarting. With no outputs, it waits for one.
 The top layer stays above normal windows; fullscreen behavior follows the

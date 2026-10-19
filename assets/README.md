@@ -14,7 +14,7 @@ Add this fixture as a local feed (replace the path with the repository location)
 
 ```toml
 [[calendar.feeds]]
-name = "Calstack Demo"
+name = "CalStack Demo"
 path = "/home/reustle/sync/projects/calstack/assets/demo.ics"
 color = "#7F9BB3"
 enabled = true

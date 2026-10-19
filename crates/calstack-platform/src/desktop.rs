@@ -32,10 +32,10 @@ fn home() -> Result<PathBuf> {
     ))
 }
 
-/// Synchronize only Calstack's own entry; never touch anything else.
+/// Synchronize only CalStack's own entry; never touch anything else.
 pub fn sync_autostart(enabled: bool, config: &Path) -> Result<()> {
     let entry = os::entry_path()?;
-    let executable = std::env::current_exe().context("locate Calstack executable")?;
+    let executable = std::env::current_exe().context("locate CalStack executable")?;
     sync_at(&entry, enabled, &executable, config)
 }
 fn sync_at(entry: &Path, enabled: bool, executable: &Path, config: &Path) -> Result<()> {
@@ -49,7 +49,7 @@ fn sync_at(entry: &Path, enabled: bool, executable: &Path, config: &Path) -> Res
         .is_some_and(|text| !os::is_managed(text))
     {
         bail!(
-            "{} was created outside Calstack; move it aside before using the startup setting",
+            "{} was created outside CalStack; move it aside before using the startup setting",
             entry.display()
         );
     }
@@ -111,7 +111,7 @@ fn lock_at(path: &Path) -> Result<Option<File>> {
     match file.try_lock() {
         Ok(()) => Ok(Some(file)),
         Err(TryLockError::WouldBlock) => Ok(None),
-        Err(TryLockError::Error(error)) => Err(error).context("lock Calstack instance"),
+        Err(TryLockError::Error(error)) => Err(error).context("lock CalStack instance"),
     }
 }
 

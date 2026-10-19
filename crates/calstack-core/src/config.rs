@@ -227,7 +227,7 @@ pub fn create_default(path: &Path) -> Result<()> {
         options.mode(0o600);
     }
     let mut file = options.open(path)?;
-    file.write_all(b"# Calstack configuration. Choose Refresh after editing.\n# Add [[calendar.feeds]] entries with a name and URL or local path.\n\n")?;
+    file.write_all(b"# CalStack configuration. Choose Refresh after editing.\n# Add [[calendar.feeds]] entries with a name and URL or local path.\n\n")?;
     file.write_all(toml::to_string_pretty(&Config::default())?.as_bytes())?;
     Ok(())
 }
