@@ -1,5 +1,7 @@
 # Calstack
 
+A minimalist thin vertical calendar for Mac and Linux
+
 ![Calstack on the Omarchy desktop](assets/screenshots/fullscreen.png)
 
 ![Event popup with a Google Meet link](assets/screenshots/single-event.png)
