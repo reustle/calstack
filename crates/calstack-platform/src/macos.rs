@@ -21,7 +21,7 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     monitor::MonitorHandle,
     platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS},
-    window::{Window, WindowId, WindowLevel},
+    window::{Theme, Window, WindowId, WindowLevel},
 };
 
 struct NativeWindow {
@@ -281,16 +281,16 @@ impl Backend for MacSurfaces {
         }
     }
     fn is_light(&self, _config: &Config) -> bool {
-        Command::new("defaults")
-            .args(["read", "-g", "AppleInterfaceStyle"])
-            .output()
-            .map(|out| {
-                !(out.status.success() && String::from_utf8_lossy(&out.stdout).contains("Dark"))
-            })
-            .unwrap_or(true)
+        self.strip.window.theme() != Some(Theme::Dark)
     }
     fn live_palette(&self, _config: &Config) -> Option<Palette> {
-        None
+        // Core polls this in System mode and redraws both surfaces on changes.
+        // Read AppKit's current appearance through winit without spawning a
+        // `defaults` process. Preserve the last palette if detection fails.
+        self.strip
+            .window
+            .theme()
+            .map(|theme| Palette::new(theme == Theme::Light))
     }
     fn poll_font_settings(&mut self) -> Option<calstack_render::TextRenderer> {
         None
