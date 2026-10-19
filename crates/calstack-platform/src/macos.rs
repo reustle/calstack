@@ -150,12 +150,31 @@ struct MacSurfaces {
     pending_popup_size: Option<(u32, u32)>,
     strip_cursor: (f32, f32),
     popup_cursor: (f32, f32),
+    /// Logical width of the strip on screen (less than its content with
+    /// autohide), and the display edge it hugs: right x, top y, height
+    /// (physical pixels) and scale.
+    visible: u32,
+    edge: Option<(i32, i32, u32, f64)>,
     // Settings runs as a separate process (its own winit/eframe event loop
     // can't share this one); tracked so Quit closes it too instead of
     // leaving it orphaned after the strip exits.
     settings_child: Option<std::process::Child>,
 }
 impl MacSurfaces {
+    /// Size the strip to its visible width, flush with the display's right edge.
+    fn place_strip(&mut self) {
+        let Some((right, top, height, scale)) = self.edge else {
+            return;
+        };
+        let width = (self.visible.max(1) as f64 * scale).round() as u32;
+        let _ = self
+            .strip
+            .window
+            .request_inner_size(PhysicalSize::new(width, height));
+        self.strip
+            .window
+            .set_outer_position(PhysicalPosition::new(right - width as i32, top));
+    }
     /// Quit should take the settings window down with it, not leave it
     /// running as an orphan once the strip that spawned it is gone.
     fn kill_settings_window(&mut self) {
@@ -234,14 +253,14 @@ impl Backend for MacSurfaces {
             return false;
         };
         let scale = monitor.scale_factor();
-        let width_physical = (config.display.width as f64 * scale).round() as u32;
         let inset = menu_bar_inset(&monitor);
-        let size = PhysicalSize::new(width_physical, monitor.size().height.saturating_sub(inset));
-        let _ = self.strip.window.request_inner_size(size);
-        self.strip.window.set_outer_position(PhysicalPosition::new(
-            monitor.position().x + monitor.size().width as i32 - width_physical as i32,
+        self.edge = Some((
+            monitor.position().x + monitor.size().width as i32,
             monitor.position().y + inset as i32,
+            monitor.size().height.saturating_sub(inset),
+            scale,
         ));
+        self.place_strip();
         let actual = self.strip.window.inner_size();
         self.pending_strip_size = Some((
             (actual.width as f64 / scale).round() as u32,
@@ -249,8 +268,15 @@ impl Backend for MacSurfaces {
         ));
         false
     }
+    fn set_strip_visible(&mut self, width: u32) {
+        if self.visible != width {
+            self.visible = width;
+            self.place_strip();
+        }
+    }
     fn present_strip(&mut self, canvas: Canvas) {
-        self.strip.present(canvas);
+        let width = self.strip.window.inner_size().width;
+        self.strip.present(canvas.crop_left(width));
     }
     fn show_popup(&mut self, width: u32, height: u32, y: f32) {
         self.pending_popup_request = Some((width, height, y));
@@ -388,6 +414,8 @@ impl ApplicationHandler for MacApp {
             pending_popup_size: None,
             strip_cursor: (0.0, 0.0),
             popup_cursor: (0.0, 0.0),
+            visible: self.config.display.width,
+            edge: None,
             settings_child: None,
         };
         let palette = app::palette_for(&surfaces, &self.config);

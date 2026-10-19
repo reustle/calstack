@@ -273,6 +273,8 @@ impl App {
                     ui.selectable_value(&mut cfg.appearance.theme, "light".into(), "Light");
                 });
         });
+        ui.checkbox(&mut cfg.display.autohide, "Auto-hide at the screen edge")
+            .on_hover_text("Rest the pointer on the right edge to slide the strip out.");
         ui.checkbox(&mut cfg.appearance.show_now_marker, "Show current time");
         ui.horizontal(|ui| {
             ui.label("Past event opacity");

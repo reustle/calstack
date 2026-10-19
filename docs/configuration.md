@@ -11,6 +11,7 @@ monitor = "primary"
 day_start = "06:00"
 day_end = "24:00"
 reserve_space = true
+autohide = false
 
 [appearance]
 theme = "auto"
@@ -60,6 +61,13 @@ macOS, an app bundle signed with an Apple Development certificate (see
 joins the meeting when clicked. The bare binary or an ad-hoc-signed bundle
 falls back to AppleScript notifications, which appear under Script Editor and
 don't open the link.
+
+With `autohide = true` the strip tucks away to a one-pixel sliver on the right
+edge, like the macOS Dock. Rest the pointer there for half a second and it
+slides out; it slides back once the pointer leaves the strip and any event
+popup. An auto-hidden strip floats over windows, so `reserve_space` is ignored.
+If another display sits to the right, the pointer crosses over instead of
+resting on the edge, so autohide works best on the rightmost display.
 
 `primary` means the current available output, initially the first Wayland output.
 You can use a connector name such as `eDP-1`. If that output disappears, CalStack

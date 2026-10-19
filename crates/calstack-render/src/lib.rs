@@ -53,6 +53,24 @@ pub struct Canvas {
     pub scale: f32,
 }
 impl Canvas {
+    /// Keep only the leftmost `width` physical columns.
+    pub fn crop_left(self, width: u32) -> Self {
+        if width >= self.width {
+            return self;
+        }
+        let (old, new) = (self.width as usize * 4, width as usize * 4);
+        let pixels = self
+            .pixels
+            .chunks_exact(old)
+            .flat_map(|row| &row[..new])
+            .copied()
+            .collect();
+        Self {
+            pixels,
+            width,
+            ..self
+        }
+    }
     pub fn new(width: u32, height: u32, scale: u32, background: [u8; 3]) -> Self {
         let mut canvas = Self {
             pixels: vec![0; (width * height * scale * scale * 4) as usize],

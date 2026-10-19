@@ -67,6 +67,10 @@ pub trait Backend {
     /// the strip was torn down and recreated (Linux, on a monitor change), so
     /// `Core` must forget per-surface state such as size, scale, and hover.
     fn ensure_strip(&mut self, config: &Config) -> bool;
+    /// Show only the leftmost `width` logical pixels of the strip, still
+    /// flush with the screen edge (autohide). Strip content keeps its full
+    /// configured width; `present_strip` crops to what's visible.
+    fn set_strip_visible(&mut self, width: u32);
     fn present_strip(&mut self, canvas: Canvas);
 
     /// Open or move the popup surface to anchor at `y` (strip-local vertical
@@ -136,6 +140,12 @@ fn is_light<B: Backend>(backend: &B, config: &Config) -> bool {
     }
 }
 
+/// Autohide: how long the pointer rests on the edge before the strip slides
+/// out, how long the slide takes, and the animation frame interval.
+const EDGE_DWELL: Duration = Duration::from_millis(500);
+const SLIDE: Duration = Duration::from_millis(150);
+const FRAME: Duration = Duration::from_millis(16);
+
 pub struct Core {
     pub config: Config,
     pub config_path: PathBuf,
@@ -162,6 +172,12 @@ pub struct Core {
     dismiss_due: Option<Instant>,
     tick_due: Instant,
     popup: Option<PopupState>,
+    /// Autohide progress (0 hidden, 1 out), where it's heading, the last
+    /// animation step, and when a pointer resting on the edge reveals it.
+    reveal: f32,
+    reveal_goal: f32,
+    reveal_step: Instant,
+    edge_due: Option<Instant>,
     /// Events already announced today, keyed by calendar, title, and start.
     notified: HashSet<(String, String, i32)>,
     pub text: TextRenderer,
@@ -176,7 +192,12 @@ impl Core {
         text: TextRenderer,
         palette: Palette,
     ) -> Self {
+        let reveal = if config.display.autohide { 0.0 } else { 1.0 };
         Self {
+            reveal,
+            reveal_goal: reveal,
+            reveal_step: Instant::now(),
+            edge_due: None,
             width: config.display.width,
             height: 0,
             scale: 1,
@@ -214,6 +235,7 @@ impl Core {
     }
 
     fn ensure_strip<B: Backend>(&mut self, backend: &mut B) {
+        backend.set_strip_visible(self.visible_width());
         if backend.ensure_strip(&self.config) {
             self.strip_recreated(backend);
         }
@@ -227,6 +249,54 @@ impl Core {
         self.scale = 1;
         self.height = 0;
         self.blocks.clear();
+    }
+
+    /// Logical columns of the strip on screen: all of it, or with autohide a
+    /// one-pixel sliver that catches the pointer, growing as it slides out.
+    fn visible_width(&self) -> u32 {
+        let full = self.config.display.width.max(1);
+        if !self.config.display.autohide {
+            return full;
+        }
+        (1.0 + (full - 1) as f32 * self.reveal).round() as u32
+    }
+
+    /// Autohide is on and the strip is hidden or on its way there.
+    fn tucked_away(&self) -> bool {
+        self.config.display.autohide && self.reveal_goal == 0.0
+    }
+
+    fn slide<B: Backend>(&mut self, backend: &mut B, out: bool) {
+        let goal = if out { 1.0 } else { 0.0 };
+        if self.reveal_goal == goal {
+            return;
+        }
+        self.reveal_goal = goal;
+        self.reveal_step = Instant::now();
+        self.edge_due = None;
+        if !out {
+            self.close_popup(backend);
+            self.clear_hover();
+            self.draw_strip(backend);
+        }
+    }
+
+    /// Advance the slide by the time since the last step.
+    fn animate<B: Backend>(&mut self, backend: &mut B) {
+        let now = Instant::now();
+        let step = now.duration_since(self.reveal_step).as_secs_f32() / SLIDE.as_secs_f32();
+        self.reveal_step = now;
+        let before = self.visible_width();
+        self.reveal = if self.reveal_goal > self.reveal {
+            (self.reveal + step).min(self.reveal_goal)
+        } else {
+            (self.reveal - step).max(self.reveal_goal)
+        };
+        let after = self.visible_width();
+        if after != before {
+            backend.set_strip_visible(after);
+            self.draw_strip(backend);
+        }
     }
 
     fn clear_hover(&mut self) {
@@ -250,6 +320,12 @@ impl Core {
         }
         if let Some(due) = self.dismiss_due {
             deadline = deadline.min(due);
+        }
+        if let Some(due) = self.edge_due {
+            deadline = deadline.min(due);
+        }
+        if self.reveal != self.reveal_goal {
+            deadline = deadline.min(Instant::now() + FRAME);
         }
         if let Some(minutes) = self.next_notification_in(now_minutes()) {
             deadline = deadline.min(Instant::now() + Duration::from_secs_f32(minutes * 60.0));
@@ -375,6 +451,10 @@ impl Core {
     pub fn refresh<B: Backend>(&mut self, backend: &mut B) {
         match Config::load(&self.config_path) {
             Ok(config) => {
+                if config.display.autohide != self.config.display.autohide {
+                    let reveal = if config.display.autohide { 0.0 } else { 1.0 };
+                    (self.reveal, self.reveal_goal, self.edge_due) = (reveal, reveal, None);
+                }
                 self.events.retain(|event| {
                     config.calendar.feeds.iter().any(|new| {
                         new.enabled
@@ -550,12 +630,25 @@ impl Core {
                 self.close_popup(backend);
                 self.clear_hover();
                 self.draw_strip(backend);
+                if self.config.display.autohide {
+                    self.slide(backend, false);
+                }
             }
+        }
+        if self.edge_due.is_some_and(|due| due <= now) {
+            self.edge_due = None;
+            if self.in_strip {
+                self.slide(backend, true);
+            }
+        }
+        if self.reveal != self.reveal_goal {
+            self.animate(backend);
         }
     }
 
     pub fn strip_configured<B: Backend>(&mut self, backend: &mut B, width: u32, height: u32) {
-        self.width = if width == 0 {
+        // With autohide the surface is often narrower than the content.
+        self.width = if width == 0 || self.config.display.autohide {
             self.config.display.width
         } else {
             width
@@ -634,6 +727,15 @@ impl Core {
     pub fn pointer_moved<B: Backend>(&mut self, backend: &mut B, surface: Surface, x: f32, y: f32) {
         self.dismiss_due = None;
         match surface {
+            Surface::Strip if self.tucked_away() => {
+                self.in_strip = true;
+                if self.reveal > 0.0 {
+                    // Caught it on the way back in: slide straight back out.
+                    self.slide(backend, true);
+                } else if self.edge_due.is_none() {
+                    self.edge_due = Some(Instant::now() + EDGE_DWELL);
+                }
+            }
             Surface::Strip => {
                 self.in_strip = true;
                 self.motion(backend, x, y);
@@ -672,6 +774,7 @@ impl Core {
             Surface::Strip => {
                 self.in_strip = false;
                 self.hover_due = None;
+                self.edge_due = None;
             }
             Surface::Popup => self.in_popup = false,
         }
@@ -686,6 +789,7 @@ impl Core {
         y: f32,
     ) {
         match surface {
+            Surface::Strip if self.tucked_away() => {}
             Surface::Strip => {
                 self.hover_due = None;
                 if y >= self.height as f32 - MENU_HEIGHT {
@@ -851,10 +955,14 @@ mod tests {
         notifications: RefCell<Vec<(String, String, String)>>,
         monitors: Vec<MonitorInfo>,
         hover_delay: Duration,
+        visible: RefCell<Vec<u32>>,
     }
     impl Backend for Recording {
         fn ensure_strip(&mut self, _config: &Config) -> bool {
             false
+        }
+        fn set_strip_visible(&mut self, width: u32) {
+            self.visible.borrow_mut().push(width);
         }
         fn present_strip(&mut self, _canvas: Canvas) {
             *self.strip_presented.borrow_mut() += 1;
@@ -1057,6 +1165,75 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(backend.list_monitors(), backend.monitors);
+    }
+
+    fn autohiding(events: Vec<Event>) -> (Core, Recording) {
+        let mut config = Config::default();
+        config.display.autohide = true;
+        let text = TextRenderer::new(REGULAR.to_vec(), REGULAR.to_vec()).unwrap();
+        let mut core = Core::new(
+            config,
+            PathBuf::from("/nonexistent/calstack-test.toml"),
+            true,
+            text,
+            Palette::new(false),
+        );
+        core.events = events;
+        let mut backend = Recording::default();
+        core.ensure_strip(&mut backend);
+        core.strip_configured(&mut backend, 1, 1000);
+        (core, backend)
+    }
+
+    /// Pretend the slide's full duration has passed, then let it finish.
+    fn finish_slide(core: &mut Core, backend: &mut Recording) {
+        core.reveal_step = Instant::now() - SLIDE;
+        core.run_timers(backend);
+    }
+
+    #[test]
+    fn autohide_reveals_after_resting_on_the_edge_and_hides_after_leaving() {
+        let (mut core, mut backend) = autohiding(vec![event(0, 1440, None)]);
+        assert_eq!(backend.visible.borrow().as_slice(), [1]);
+        assert_eq!(core.width, 13, "content keeps its full width while hidden");
+
+        // Resting on the sliver doesn't open popups or reveal right away.
+        core.pointer_moved(&mut backend, Surface::Strip, 0.0, 500.0);
+        assert_eq!(*backend.popup_shown.borrow(), 0);
+        assert!(core.edge_due.is_some());
+        core.edge_due = Some(Instant::now());
+        core.run_timers(&mut backend);
+        finish_slide(&mut core, &mut backend);
+        assert_eq!(backend.visible.borrow().last(), Some(&13));
+
+        // Once out, hovering works and moving onto the popup keeps it out.
+        core.pointer_moved(&mut backend, Surface::Strip, 2.0, 500.0);
+        assert_eq!(*backend.popup_shown.borrow(), 1);
+        core.pointer_left(Surface::Strip);
+        core.pointer_moved(&mut backend, Surface::Popup, 10.0, 10.0);
+        core.run_timers(&mut backend);
+        assert_eq!(core.reveal_goal, 1.0);
+
+        // Leaving both slides it back to the sliver and closes the popup.
+        core.pointer_left(Surface::Popup);
+        core.dismiss_due = Some(Instant::now());
+        core.run_timers(&mut backend);
+        finish_slide(&mut core, &mut backend);
+        assert_eq!(backend.visible.borrow().last(), Some(&1));
+        assert!(core.popup.is_none());
+    }
+
+    #[test]
+    fn autohide_ignores_brief_edge_visits_and_clicks_while_hidden() {
+        let (mut core, mut backend) = autohiding(vec![event(0, 1440, None)]);
+        core.pointer_moved(&mut backend, Surface::Strip, 0.0, 500.0);
+        core.pointer_left(Surface::Strip);
+        assert!(core.edge_due.is_none());
+        let menu_y = core.height as f32 - MENU_HEIGHT + 1.0;
+        core.pointer_pressed(&mut backend, Surface::Strip, 0.0, menu_y);
+        core.pointer_pressed(&mut backend, Surface::Strip, 0.0, 500.0);
+        assert_eq!(*backend.popup_shown.borrow(), 0);
+        assert_eq!(core.reveal_goal, 0.0);
     }
 
     #[test]

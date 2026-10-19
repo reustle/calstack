@@ -107,6 +107,8 @@ pub struct Display {
     pub day_end: String,
     pub monitor: String,
     pub reserve_space: bool,
+    /// Keep the strip hidden at the screen edge until the pointer rests there.
+    pub autohide: bool,
 }
 impl Default for Display {
     fn default() -> Self {
@@ -116,6 +118,7 @@ impl Default for Display {
             day_end: "24:00".into(),
             monitor: "primary".into(),
             reserve_space: true,
+            autohide: false,
         }
     }
 }

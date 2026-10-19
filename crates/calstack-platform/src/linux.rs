@@ -56,6 +56,9 @@ struct Wayland {
     strip_request: (u32, bool),
     // Strip width as configured by the compositor; positions the popup.
     strip_width: u32,
+    // Logical width Core wants on screen (narrower than the content while
+    // autohide has the strip tucked away).
+    strip_visible: u32,
     pointer: Option<wl_pointer::WlPointer>,
     popup: Option<LayerSurface>,
     font_settings: typography::FontSettings,
@@ -92,7 +95,11 @@ impl Wayland {
             .or_else(|| outputs.iter().find(|o| Some(*o) == self.output.as_ref()))
             .or_else(|| outputs.first())
             .cloned();
-        let request = (config.display.width, config.display.reserve_space);
+        // An autohiding strip floats over windows instead of reserving space.
+        let request = (
+            self.strip_visible,
+            config.display.reserve_space && !config.display.autohide,
+        );
         if self.output == desired {
             if let Some(layer) = &self.strip {
                 if self.strip_request != request {
@@ -106,7 +113,7 @@ impl Wayland {
         self.popup = None;
         self.strip = None;
         self.output = desired;
-        self.strip_width = config.display.width;
+        self.strip_width = self.strip_visible;
         if self.output.is_some() {
             let layer = self.shell.create_layer_surface(
                 &self.qh,
@@ -184,9 +191,22 @@ impl Backend for Wayland {
     fn ensure_strip(&mut self, config: &Config) -> bool {
         self.place_strip(config, None)
     }
+    fn set_strip_visible(&mut self, width: u32) {
+        self.strip_visible = width;
+        let request = (width, self.strip_request.1);
+        if let Some(layer) = &self.strip {
+            if self.strip_request != request {
+                self.strip_request = request;
+                Self::size_strip(layer, request);
+                layer.commit();
+            }
+        }
+    }
     fn present_strip(&mut self, canvas: Canvas) {
         if let Some(layer) = self.strip.clone() {
-            self.present(layer.wl_surface(), canvas);
+            // Match the size the compositor last configured.
+            let width = (self.strip_width as f32 * canvas.scale).round() as u32;
+            self.present(layer.wl_surface(), canvas.crop_left(width));
         }
     }
     fn show_popup(&mut self, width: u32, height: u32, y: f32) {
@@ -408,6 +428,11 @@ fn run_session(conn: Connection, config: Config, config_path: PathBuf, demo: boo
         strip: None,
         strip_request: (0, false),
         strip_width: config.display.width,
+        strip_visible: if config.display.autohide {
+            1
+        } else {
+            config.display.width
+        },
         pointer: None,
         popup: None,
         font_settings,

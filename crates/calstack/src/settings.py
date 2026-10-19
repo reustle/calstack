@@ -199,6 +199,11 @@ class Settings(Gtk.Application):
         self.theme = Gtk.DropDown.new_from_strings(["System", "Dark", "Light"])
         self.theme.set_selected(["auto", "dark", "light"].index(appearance["theme"]))
         self.reserve = Gtk.Switch(active=display["reserve_space"], valign=Gtk.Align.CENTER)
+        self.autohide = Gtk.Switch(active=display.get("autohide", False), valign=Gtk.Align.CENTER)
+        self.autohide.set_tooltip_text("Rest the pointer on the right edge to slide the strip out.")
+        # An auto-hidden strip floats over windows, so it never reserves space.
+        self.autohide.bind_property("active", self.reserve, "sensitive",
+                                    GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN)
         self.now = Gtk.Switch(active=appearance["show_now_marker"], valign=Gtk.Align.CENTER)
         self.autostart = Gtk.Switch(active=self.config["startup"]["autostart"], valign=Gtk.Align.CENTER)
         notifications = self.config.setdefault("notifications", {"enabled": True, "minutes_before": 2})
@@ -211,6 +216,7 @@ class Settings(Gtk.Application):
         fields = [("Strip width (pixels)", self.width), ("Day starts (HH:MM)", self.start),
                   ("Day ends (HH:MM)", self.end), ("Monitor", self.monitor),
                   ("Appearance", self.theme), ("Reserve screen space", self.reserve),
+                  ("Auto-hide at the screen edge", self.autohide),
                   ("Show current time", self.now), ("Past event opacity", self.opacities["past_opacity"]),
                   ("Future event opacity", self.opacities["future_opacity"]),
                   ("Active event opacity", self.opacities["active_opacity"]),
@@ -226,7 +232,8 @@ class Settings(Gtk.Application):
     def save(self, *_):
         self.config["display"].update(width=self.width.get_value_as_int(), day_start=self.start.get_text().strip(),
                                       day_end=self.end.get_text().strip(), monitor=self.monitor.get_text().strip(),
-                                      reserve_space=self.reserve.get_active())
+                                      reserve_space=self.reserve.get_active(),
+                                      autohide=self.autohide.get_active())
         self.config["appearance"].update(theme=["auto", "dark", "light"][self.theme.get_selected()],
                                          show_now_marker=self.now.get_active(),
                                          **{key: control.get_value() for key, control in self.opacities.items()})
